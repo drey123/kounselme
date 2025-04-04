@@ -1,0 +1,20 @@
+[{
+	"resource": "/C:/Users/hpspecter/kounselme/lib/data/remote/database_service.dart",
+	"owner": "_generated_diagnostic_collection_name_#4",
+	"code": {
+		"value": "undefined_method",
+		"target": {
+			"$mid": 1,
+			"path": "/diagnostics/undefined_method",
+			"scheme": "https",
+			"authority": "dart.dev"
+		}
+	},
+	"severity": 8,
+	"message": "The method 'fromUri' isn't defined for the type 'PostgreSQLConnection'.\nTry correcting the name to the name of an existing method, or defining a method named 'fromUri'.",
+	"source": "dart",
+	"startLineNumber": 35,
+	"startColumn": 44,
+	"endLineNumber": 35,
+	"endColumn": 51
+}]
