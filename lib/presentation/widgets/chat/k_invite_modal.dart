@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kounselme/config/app_icons.dart';
 import 'package:kounselme/config/theme_improved.dart';
+import 'package:kounselme/config/env.dart';
 import 'package:kounselme/presentation/widgets/common/k_button.dart';
 import 'package:kounselme/presentation/widgets/common/k_text_field.dart';
 
@@ -53,8 +54,8 @@ class _KInviteModalState extends State<KInviteModal> {
   }
 
   void _copyInviteLink() {
-    // In a real app, this would generate a proper invite link
-    final inviteLink = 'https://kounselme.app/join/${widget.sessionId}';
+    // Generate invite link using environment configuration
+    final inviteLink = Env.getAppUrl('/join/${widget.sessionId}');
     Clipboard.setData(ClipboardData(text: inviteLink));
 
     setState(() {
@@ -151,7 +152,7 @@ class _KInviteModalState extends State<KInviteModal> {
                           border: Border.all(color: AppTheme.divider),
                         ),
                         child: Text(
-                          'https://kounselme.app/join/${widget.sessionId}',
+                          Env.getAppUrl('/join/${widget.sessionId}'),
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,

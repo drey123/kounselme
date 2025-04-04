@@ -1,370 +1,393 @@
 // lib/config/theme_improved.dart
-// Enhanced theme with improved typography, icon system, and platform compliance
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io' show Platform;
+import 'dart:math' as math;
+
+/// Extension on Color to provide safe opacity and color manipulation
+extension ColorExtension on Color {
+  /// Creates a new color with the specified opacity while preserving RGB values
+  /// This properly handles opacity without precision loss
+  Color withAlpha(double opacity) {
+    return Color.fromRGBO(
+      red,
+      green,
+      blue,
+      opacity.clamp(0.0, 1.0),
+    );
+  }
+
+  /// Creates a new color with modified RGBA values
+  /// Any parameter left as null will use the original color's value
+  Color withValues({int? red, int? green, int? blue, double? alpha}) {
+    return Color.fromRGBO(
+      red ?? this.red,
+      green ?? this.green,
+      blue ?? this.blue,
+      alpha ?? this.opacity,
+    );
+  }
+
+  /// Creates a lighter version of this color
+  Color lighter([double amount = 0.1]) {
+    assert(amount >= 0 && amount <= 1, 'Amount must be between 0 and 1');
+
+    final hsl = HSLColor.fromColor(this);
+    final lightness = (hsl.lightness + amount).clamp(0.0, 1.0);
+
+    return hsl.withLightness(lightness).toColor();
+  }
+
+  /// Creates a darker version of this color
+  Color darker([double amount = 0.1]) {
+    assert(amount >= 0 && amount <= 1, 'Amount must be between 0 and 1');
+
+    final hsl = HSLColor.fromColor(this);
+    final lightness = (hsl.lightness - amount).clamp(0.0, 1.0);
+
+    return hsl.withLightness(lightness).toColor();
+  }
+}
 
 /// Comprehensive design system for KounselMe
-/// Focuses on premium look, cross-platform consistency, and modern UI principles
 class AppTheme {
   // Private constructor to prevent instantiation
   AppTheme._();
 
   // =========================================================================
+  // FONTS
+  // =========================================================================
+  static const String fontInter = 'Inter';
+
+  // =========================================================================
   // COLORS
   // =========================================================================
 
-  // Brand Colors
-  static const Color electricViolet = Color(0xFF5700E6);
-  static const Color electricVioletLight =
-      Color(0xFF7940EA); // Lighter shade for hover states
-  static const Color electricVioletDark =
-      Color(0xFF4500B8); // Darker shade for pressed states
+  // Primary Colors
+  static const Color electricViolet = Color(0xFF8A4FFF);
+  static const Color electricVioletLight = Color(0xFFA47AFF);
+  static const Color electricVioletDark = Color(0xFF6E3FCC);
+  static const Color heliotrope = Color(0xFFAC8FFF);
+  static const Color heliotropeLight = Color(0xFFEEE8FF);
 
-  static const Color heliotrope = Color(0xFFB27BFB);
-  static const Color heliotropeLight = Color(0xFFC496FC); // Lighter shade
-  static const Color heliotropeDark = Color(0xFF9F5CF9); // Darker shade
-
-  static const Color robinsGreen = Color(0xFF07D4BC);
-  static const Color robinsGreenLight = Color(0xFF20E0C9); // Lighter shade
-  static const Color robinsGreenDark = Color(0xFF06B09B); // Darker shade
-
-  static const Color yellowSea = Color(0xFFFFB00C);
-  static const Color yellowSeaLight = Color(0xFFFFBE3D); // Lighter shade
-  static const Color yellowSeaDark = Color(0xFFE69C00); // Darker shade
-
-  static const Color pink = Color(0xFFFFC5CB);
+  // Secondary Colors
+  static const Color robinsGreen = Color(0xFF00C6A2);
+  static const Color robinsGreenLight = Color(0xFF5DDFC8);
+  static const Color robinsGreenDark = Color(0xFF009E82);
 
   // Neutrals
+  static const Color codGray = Color(0xFF121212);
+  static const Color mineShaft = Color(0xFF2D2D2D);
+  static const Color doveGray = Color(0xFF646464);
+  static const Color silver = Color(0xFFBDBDBD);
+  static const Color mercury = Color(0xFFE5E5E5);
+  static const Color alabaster = Color(0xFFF8F8F8);
   static const Color snowWhite = Color(0xFFFFFFFF);
-  static const Color alabaster = Color(0xFFF8F8F8); // Off-white for backgrounds
-  static const Color gallery = Color(0xFFEEEEEE); // Light gray for dividers
-  static const Color silver = Color(0xFFCCCCCC); // Medium gray
-  static const Color boulder =
-      Color(0xFF767676); // Dark gray for secondary text
-  static const Color mineShaft = Color(0xFF333333); // Very dark gray
-  static const Color codGray = Color(0xFF0D0D0D); // Almost black
 
-  // Semantic Colors
-  static const Color success = Color(0xFF34A853); // Google green
-  static const Color successLight = Color(0xFFE6F4EA); // Light green background
+  // Text Colors
+  static const Color primaryText = Color(0xFF121212);
+  static const Color secondaryText = Color(0xFF646464);
+  static const Color disabledText = Color(0xFFBDBDBD);
 
-  static const Color error = Color(0xFFEA4335); // Google red
-  static const Color errorLight = Color(0xFFFCE8E6); // Light red background
+  // Utility Colors
+  static const Color divider = Color(0xFFE5E5E5);
+  static const Color background = Color(0xFFF8F8F8);
+  static const Color disabledBackground = Color(0xFFF0F0F0);
 
-  static const Color warning = Color(0xFFFBBC05); // Google yellow
-  static const Color warningLight =
-      Color(0xFFFEF7E0); // Light yellow background
-
-  static const Color info = Color(0xFF4285F4); // Google blue
-  static const Color infoLight = Color(0xFFE8F0FE); // Light blue background
-
-  // Functional Colors
-  static const Color background = snowWhite;
-  static const Color surfaceBackground = alabaster;
-  static const Color primaryText = codGray;
-  static const Color secondaryText = boulder;
-  static const Color divider = gallery;
-  static const Color disabledText = silver;
-  static const Color disabledBackground = gallery;
+  // Feedback Colors
+  static const Color error = Color(0xFFE53935);
+  static const Color warning = Color(0xFFFFA000);
+  static const Color success = Color(0xFF43A047);
+  static const Color info = Color(0xFF1E88E5);
 
   // =========================================================================
   // TYPOGRAPHY
   // =========================================================================
 
-  // Font Families (direct references instead of GoogleFonts for better performance)
-  static const String fontInter = 'Inter';
-  static const String fontManrope = 'Manrope';
+  // Headings
+  static const TextStyle headingXL = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 32,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: -0.5,
+    color: primaryText,
+  );
 
-  // Line Heights
-  static const double lineHeightTight = 1.2;
-  static const double lineHeightNormal = 1.5;
-  static const double lineHeightRelaxed = 1.7;
+  static const TextStyle headingL = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: -0.5,
+    color: primaryText,
+  );
 
-  // Font Weights
-  static const FontWeight weightLight = FontWeight.w300;
-  static const FontWeight weightRegular = FontWeight.w400;
-  static const FontWeight weightMedium = FontWeight.w500;
-  static const FontWeight weightSemiBold = FontWeight.w600;
-  static const FontWeight weightBold = FontWeight.w700;
-  static const FontWeight weightExtraBold = FontWeight.w800;
+  static const TextStyle headingM = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 24,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: -0.25,
+    color: primaryText,
+  );
 
-  // Text Styles - Consistent naming pattern and solid colors (no opacity)
-  static TextStyle get headingXL => TextStyle(
-        fontFamily: fontManrope,
-        fontSize: 32,
-        fontWeight: weightBold,
-        height: lineHeightTight,
-        letterSpacing: -0.5,
-        color: primaryText,
-      );
+  static const TextStyle headingS = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+    letterSpacing: -0.25,
+    color: primaryText,
+  );
 
-  static TextStyle get headingL => TextStyle(
-        fontFamily: fontManrope,
-        fontSize: 28,
-        fontWeight: weightBold,
-        height: lineHeightTight,
-        letterSpacing: -0.5,
-        color: primaryText,
-      );
+  static const TextStyle headingXS = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+    height: 1.3,
+    letterSpacing: -0.25,
+    color: primaryText,
+  );
 
-  static TextStyle get headingM => TextStyle(
-        fontFamily: fontManrope,
-        fontSize: 24,
-        fontWeight: weightBold,
-        height: lineHeightTight,
-        letterSpacing: -0.3,
-        color: primaryText,
-      );
+  // Subtitles
+  static const TextStyle subtitleL = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    height: 1.3,
+    letterSpacing: -0.25,
+    color: primaryText,
+  );
 
-  static TextStyle get headingS => TextStyle(
-        fontFamily: fontManrope,
-        fontSize: 20,
-        fontWeight: weightBold,
-        height: lineHeightTight,
-        letterSpacing: -0.2,
-        color: primaryText,
-      );
+  static const TextStyle subtitleM = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+    letterSpacing: -0.15,
+    color: primaryText,
+  );
 
-  static TextStyle get headingXS => TextStyle(
-        fontFamily: fontManrope,
-        fontSize: 18,
-        fontWeight: weightSemiBold,
-        height: lineHeightTight,
-        letterSpacing: -0.2,
-        color: primaryText,
-      );
+  static const TextStyle subtitleS = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+    letterSpacing: -0.1,
+    color: primaryText,
+  );
 
-  static TextStyle get subtitleL => TextStyle(
-        fontFamily: fontManrope,
-        fontSize: 18,
-        fontWeight: weightSemiBold,
-        height: lineHeightNormal,
-        letterSpacing: -0.1,
-        color: primaryText,
-      );
+  // Body Text
+  static const TextStyle bodyL = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
-  static TextStyle get subtitleM => TextStyle(
-        fontFamily: fontManrope,
-        fontSize: 16,
-        fontWeight: weightSemiBold,
-        height: lineHeightNormal,
-        letterSpacing: -0.1,
-        color: primaryText,
-      );
+  static const TextStyle bodyM = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
-  static TextStyle get subtitleS => TextStyle(
-        fontFamily: fontManrope,
-        fontSize: 14,
-        fontWeight: weightSemiBold,
-        height: lineHeightNormal,
-        letterSpacing: 0,
-        color: primaryText,
-      );
+  static const TextStyle bodyS = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
-  static TextStyle get bodyL => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 18,
-        fontWeight: weightRegular,
-        height: lineHeightRelaxed,
-        letterSpacing: -0.1,
-        color: primaryText,
-      );
+  // Labels
+  static const TextStyle labelL = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    height: 1.4,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
-  static TextStyle get bodyM => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 16,
-        fontWeight: weightRegular,
-        height: lineHeightRelaxed,
-        letterSpacing: -0.1,
-        color: primaryText,
-      );
+  static const TextStyle labelM = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    height: 1.4,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
-  static TextStyle get bodyS => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 14,
-        fontWeight: weightRegular,
-        height: lineHeightRelaxed,
-        letterSpacing: 0,
-        color: primaryText,
-      );
+  static const TextStyle labelS = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 10,
+    fontWeight: FontWeight.w500,
+    height: 1.4,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
-  static TextStyle get bodyXS => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 12,
-        fontWeight: weightRegular,
-        height: lineHeightNormal,
-        letterSpacing: 0,
-        color: primaryText,
-      );
+  // Buttons
+  static const TextStyle buttonL = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
-  static TextStyle get buttonL => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 16,
-        fontWeight: weightSemiBold,
-        height: lineHeightNormal,
-        letterSpacing: 0,
-        color: snowWhite,
-      );
+  static const TextStyle buttonM = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
-  static TextStyle get buttonM => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 14,
-        fontWeight: weightSemiBold,
-        height: lineHeightNormal,
-        letterSpacing: 0,
-        color: snowWhite,
-      );
-
-  static TextStyle get buttonS => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 12,
-        fontWeight: weightSemiBold,
-        height: lineHeightNormal,
-        letterSpacing: 0.25,
-        color: snowWhite,
-      );
-
-  static TextStyle get labelL => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 14,
-        fontWeight: weightMedium,
-        height: lineHeightNormal,
-        letterSpacing: 0.25,
-        color: primaryText,
-      );
-
-  static TextStyle get labelM => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 12,
-        fontWeight: weightMedium,
-        height: lineHeightNormal,
-        letterSpacing: 0.5,
-        color: primaryText,
-      );
-
-  static TextStyle get labelS => TextStyle(
-        fontFamily: fontInter,
-        fontSize: 10,
-        fontWeight: weightMedium,
-        height: lineHeightNormal,
-        letterSpacing: 0.5,
-        color: primaryText,
-      );
+  static const TextStyle buttonS = TextStyle(
+    fontFamily: fontInter,
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+    height: 1.4,
+    letterSpacing: 0,
+    color: primaryText,
+  );
 
   // =========================================================================
-  // SHAPE & DIMENSIONS
+  // SPACING
   // =========================================================================
 
-  // Border Radius
-  static const double radiusXS = 4.0;
-  static const double radiusS = 8.0;
-  static const double radiusM = 12.0;
-  static const double radiusL = 16.0;
-  static const double radiusXL = 20.0;
-  static const double radiusXXL = 24.0;
-  static const double radiusRound = 1000.0; // For circular elements
-
-  // Spacing
-  static const double spacingXXS = 2.0;
-  static const double spacingXS = 4.0;
-  static const double spacingS = 8.0;
-  static const double spacingM = 12.0;
-  static const double spacingL = 16.0;
-  static const double spacingXL = 20.0;
-  static const double spacingXXL = 24.0;
-  static const double spacing3XL = 32.0;
-  static const double spacing4XL = 40.0;
-  static const double spacing5XL = 48.0;
-  static const double spacing6XL = 64.0;
-
-  // Elevation (for shadow levels)
-  static const double elevationNone = 0.0;
-  static const double elevationXS = 1.0;
-  static const double elevationS = 2.0;
-  static const double elevationM = 4.0;
-  static const double elevationL = 8.0;
-  static const double elevationXL = 12.0;
-  static const double elevationXXL = 16.0;
-
-  // Icon Sizes
-  static const double iconXS = 16.0;
-  static const double iconS = 20.0;
-  static const double iconM = 24.0;
-  static const double iconL = 28.0;
-  static const double iconXL = 32.0;
-  static const double iconXXL = 40.0;
+  // Spacing Scale
+  static const double spaceXXS = 2;
+  static const double spaceXS = 4;
+  static const double spaceS = 8;
+  static const double spaceM = 12;
+  static const double spaceL = 16;
+  static const double spaceXL = 24;
+  static const double spaceXXL = 32;
+  static const double space3XL = 40;
+  static const double space4XL = 48;
+  static const double space5XL = 64;
+  static const double space6XL = 80;
+  static const double space7XL = 96;
+  static const double space8XL = 128;
 
   // =========================================================================
-  // COMPONENT STYLING
+  // RADIUS
   // =========================================================================
 
-  // Shadow Styles
+  // Border Radius Scale
+  static const double radiusXS = 4;
+  static const double radiusS = 8;
+  static const double radiusM = 12;
+  static const double radiusL = 16;
+  static const double radiusXL = 20;
+  static const double radiusXXL = 24;
+  static const double radiusRound = 100;
+
+  // =========================================================================
+  // ELEVATION
+  // =========================================================================
+
+  // Elevation Scale
+  static const double elevationXS = 1;
+  static const double elevationS = 2;
+  static const double elevationM = 4;
+  static const double elevationL = 8;
+  static const double elevationXL = 16;
+  static const double elevationXXL = 24;
+
+  // Shadow Generator
   static List<BoxShadow> getShadow({
     required double elevation,
     Color? shadowColor,
   }) {
-    final Color color = shadowColor ?? Colors.black;
+    final color = shadowColor ?? Colors.black.withAlpha((0.2 * 255).toInt());
 
-    switch (elevation) {
-      case elevationXS:
+    switch (elevation.round()) {
+      case 1:
         return [
           BoxShadow(
-            color: color.withValues(alpha: 0.05),
-            blurRadius: 2,
-            spreadRadius: 0,
+            color: color.withAlpha((0.05 * 255).toInt()),
+            blurRadius: 1,
             offset: const Offset(0, 1),
           ),
         ];
-      case elevationS:
+      case 2:
         return [
           BoxShadow(
-            color: color.withValues(alpha: 0.07),
+            color: color.withAlpha((0.1 * 255).toInt()),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ];
+      case 4:
+        return [
+          BoxShadow(
+            color: color.withAlpha((0.1 * 255).toInt()),
             blurRadius: 4,
-            spreadRadius: 0,
             offset: const Offset(0, 2),
           ),
         ];
-      case elevationM:
+      case 8:
         return [
           BoxShadow(
-            color: color.withValues(alpha: 0.09),
+            color: color.withAlpha((0.1 * 255).toInt()),
             blurRadius: 8,
-            spreadRadius: 1,
             offset: const Offset(0, 4),
           ),
         ];
-      case elevationL:
+      case 16:
         return [
           BoxShadow(
-            color: color.withValues(alpha: 0.11),
+            color: color.withAlpha((0.1 * 255).toInt()),
             blurRadius: 16,
-            spreadRadius: 2,
             offset: const Offset(0, 8),
           ),
         ];
-      case elevationXL:
+      case 24:
         return [
           BoxShadow(
-            color: color.withValues(alpha: 0.13),
+            color: color.withAlpha((0.11 * 255).toInt()),
             blurRadius: 24,
-            spreadRadius: 3,
             offset: const Offset(0, 12),
           ),
         ];
-      case elevationXXL:
+      default:
         return [
           BoxShadow(
-            color: color.withValues(alpha: 0.15),
-            blurRadius: 32,
-            spreadRadius: 4,
-            offset: const Offset(0, 16),
+            color: color.withAlpha((0.1 * 255).toInt()),
+            blurRadius: elevation,
+            offset: Offset(0, elevation / 2),
           ),
         ];
-      default:
-        return [];
     }
   }
+
+  // =========================================================================
+  // ICONS
+  // =========================================================================
+
+  // Icon Sizes
+  static const double iconXS = 12;
+  static const double iconS = 16;
+  static const double iconM = 20;
+  static const double iconL = 24;
+  static const double iconXL = 32;
+  static const double iconXXL = 40;
+
+  // =========================================================================
+  // DECORATIONS
+  // =========================================================================
 
   // Card Decoration
   static BoxDecoration cardDecoration({
@@ -378,36 +401,14 @@ class AppTheme {
     return BoxDecoration(
       color: backgroundColor ?? snowWhite,
       borderRadius: BorderRadius.circular(borderRadius),
+      boxShadow: getShadow(
+        elevation: elevation,
+        shadowColor:
+            shadowColor ?? electricViolet.withAlpha((0.08 * 255).toInt()),
+      ),
       border: borderColor != null
           ? Border.all(color: borderColor, width: borderWidth)
           : null,
-      boxShadow: getShadow(elevation: elevation, shadowColor: shadowColor),
-    );
-  }
-
-  // Glassmorphism Decoration
-  static BoxDecoration glassDecoration({
-    Color? baseColor,
-    double opacity = 0.2,
-    double borderRadius = radiusL,
-    double borderOpacity = 0.2,
-  }) {
-    final color = baseColor ?? snowWhite;
-    return BoxDecoration(
-      color: color.withValues(alpha: opacity),
-      borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(
-        color: color.withValues(alpha: borderOpacity),
-        width: 1.5,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: color.withValues(alpha: 0.05),
-          blurRadius: 10,
-          spreadRadius: 0,
-          offset: const Offset(0, 4),
-        ),
-      ],
     );
   }
 
@@ -415,18 +416,39 @@ class AppTheme {
   static BoxDecoration gradientDecoration({
     required List<Color> colors,
     double borderRadius = radiusL,
+    double elevation = elevationS,
+    Color? shadowColor,
     AlignmentGeometry begin = Alignment.topLeft,
     AlignmentGeometry end = Alignment.bottomRight,
-    List<double>? stops,
   }) {
     return BoxDecoration(
       gradient: LinearGradient(
+        colors: colors,
         begin: begin,
         end: end,
-        colors: colors,
-        stops: stops,
       ),
       borderRadius: BorderRadius.circular(borderRadius),
+      boxShadow: getShadow(
+        elevation: elevation,
+        shadowColor: shadowColor ?? colors.first.withAlpha((0.3 * 255).toInt()),
+      ),
+    );
+  }
+
+  // Glass Decoration
+  static BoxDecoration glassDecoration({
+    required Color baseColor,
+    double opacity = 0.1,
+    double borderRadius = radiusL,
+    double borderOpacity = 0.2,
+  }) {
+    return BoxDecoration(
+      color: baseColor.withAlpha((opacity * 255).toInt()),
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(
+        color: baseColor.withAlpha((borderOpacity * 255).toInt()),
+        width: 1,
+      ),
     );
   }
 
@@ -438,16 +460,17 @@ class AppTheme {
   static ButtonStyle primaryButtonStyle({
     Color? backgroundColor,
     Color? foregroundColor,
-    double elevation = elevationXS,
+    double elevation = elevationS,
     double borderRadius = radiusL,
     EdgeInsetsGeometry? padding,
     Size? minimumSize,
   }) {
+    final baseColor = backgroundColor ?? electricViolet;
+    final textColor = foregroundColor ?? snowWhite;
+
     return ButtonStyle(
       backgroundColor: WidgetStateProperty.resolveWith<Color>(
         (Set<WidgetState> states) {
-          final baseColor = backgroundColor ?? electricViolet;
-
           if (states.contains(WidgetState.disabled)) {
             return disabledBackground;
           }
@@ -467,7 +490,7 @@ class AppTheme {
           if (states.contains(WidgetState.disabled)) {
             return disabledText;
           }
-          return foregroundColor ?? snowWhite;
+          return textColor;
         },
       ),
       elevation: WidgetStateProperty.resolveWith<double>(
@@ -481,8 +504,8 @@ class AppTheme {
           return elevation;
         },
       ),
-      shadowColor:
-          WidgetStateProperty.all(electricViolet.withValues(alpha: 0.3)),
+      shadowColor: WidgetStateProperty.all(
+          electricViolet.withAlpha((0.3 * 255).toInt())),
       padding: WidgetStateProperty.all(
           padding ?? const EdgeInsets.symmetric(vertical: 16, horizontal: 24)),
       minimumSize: WidgetStateProperty.all(minimumSize ?? const Size(64, 48)),
@@ -518,10 +541,10 @@ class AppTheme {
       backgroundColor: WidgetStateProperty.resolveWith<Color>(
         (Set<WidgetState> states) {
           if (states.contains(WidgetState.pressed)) {
-            return baseColor.withValues(alpha: 0.05);
+            return baseColor.withAlpha((0.05 * 255).toInt());
           }
           if (states.contains(WidgetState.hovered)) {
-            return baseColor.withValues(alpha: 0.03);
+            return baseColor.withAlpha((0.03 * 255).toInt());
           }
           return Colors.transparent;
         },
@@ -622,10 +645,10 @@ class AppTheme {
       overlayColor: WidgetStateProperty.resolveWith<Color>(
         (Set<WidgetState> states) {
           if (states.contains(WidgetState.pressed)) {
-            return baseColor.withValues(alpha: 0.1);
+            return baseColor.withAlpha((0.1 * 255).toInt());
           }
           if (states.contains(WidgetState.hovered)) {
-            return baseColor.withValues(alpha: 0.05);
+            return baseColor.withAlpha((0.05 * 255).toInt());
           }
           return Colors.transparent;
         },
@@ -657,10 +680,10 @@ class AppTheme {
           if (backgroundColor != null) return backgroundColor;
 
           if (states.contains(WidgetState.pressed)) {
-            return baseColor.withValues(alpha: 0.1);
+            return baseColor.withAlpha((0.1 * 255).toInt());
           }
           if (states.contains(WidgetState.hovered)) {
-            return baseColor.withValues(alpha: 0.05);
+            return baseColor.withAlpha((0.05 * 255).toInt());
           }
           return Colors.transparent;
         },
@@ -832,7 +855,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusL),
         ),
-        shadowColor: electricViolet.withValues(alpha: 0.08),
+        shadowColor: electricViolet.withAlpha((0.08 * 255).toInt()),
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
       ),
@@ -886,7 +909,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: alabaster,
         disabledColor: disabledBackground,
-        selectedColor: electricViolet.withValues(alpha: 0.2),
+        selectedColor: electricViolet.withAlpha((0.2 * 255).toInt()),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusRound),
           side: BorderSide.none,
@@ -942,7 +965,7 @@ class AppTheme {
             overlayColor: WidgetStateProperty.resolveWith<Color>(
               (Set<WidgetState> states) {
                 if (states.contains(WidgetState.pressed)) {
-                  return snowWhite.withValues(alpha: 0.15);
+                  return snowWhite.withAlpha((0.15 * 255).toInt());
                 }
                 return Colors.transparent;
               },

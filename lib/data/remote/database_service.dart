@@ -1,553 +1,625 @@
-// lib/data/remote/database_service.dart
+// lib/data/remote/websocket_service.dart
 import 'dart:async';
-
+import 'dart:convert';
+import 'dart:math' show pow;
 import 'package:flutter/foundation.dart';
-import 'package:postgres/postgres.dart';
 import 'package:kounselme/config/env.dart';
+import 'package:kounselme/core/constants/app_constants.dart';
+import 'package:kounselme/domain/models/chat_participant.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
 
-class DatabaseService {
-  static DatabaseService? _instance;
-  PostgreSQLConnection? _connection;
-  bool _isConnected = false;
-  // UUID generator for creating unique identifiers
+enum ConnectionStatus {
+  disconnected,
+  connecting,
+  connected,
+  reconnecting,
+  authenticating,
+  error,
+}
 
-  // Maximum number of connection retries
-  static const int _maxRetries = 3;
+class WebSocketService {
+  static final WebSocketService _instance = WebSocketService._internal();
+  factory WebSocketService() => _instance;
+  WebSocketService._internal();
 
-  // Singleton pattern
-  factory DatabaseService() {
-    _instance ??= DatabaseService._internal();
-    return _instance!;
-  }
+  // WebSocket channel
+  WebSocketChannel? _channel;
 
-  DatabaseService._internal();
+  // Connection status
+  ConnectionStatus _status = ConnectionStatus.disconnected;
+  ConnectionStatus get status => _status;
 
-  bool get isConnected => _isConnected;
+  // Streaming controllers
+  final _messageController = StreamController<Map<String, dynamic>>.broadcast();
+  final _statusController = StreamController<ConnectionStatus>.broadcast();
+  final _errorController = StreamController<String>.broadcast();
+  final _typingController = StreamController<Map<String, dynamic>>.broadcast();
+  final _participantController = StreamController<List<ChatParticipant>>.broadcast();
 
-  /// Initialize database connection
-  Future<void> initialize() async {
-    if (_isConnected) return;
+  // Streams
+  Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
+  Stream<ConnectionStatus> get statusStream => _statusController.stream;
+  Stream<String> get errorStream => _errorController.stream;
+  Stream<Map<String, dynamic>> get typingStream => _typingController.stream;
+  Stream<List<ChatParticipant>> get participantStream => _participantController.stream;
 
-    try {
-      if (Env.neonDatabaseUrl.isNotEmpty) {
-        // Use the connection URL if available
-        final uri = Uri.parse(Env.neonDatabaseUrl);
-        _connection = PostgreSQLConnection(
-          uri.host,
-          uri.port,
-          uri.path.substring(1), // Remove leading slash
-          username: uri.userInfo.split(':').first,
-          password: uri.userInfo.split(':').last,
-          useSSL: true,
-        );
-      } else {
-        // Fall back to individual components
-        _connection = PostgreSQLConnection(
-          Env.neonHost,
-          Env.neonPort,
-          Env.neonDatabase,
-          username: Env.neonUsername,
-          password: Env.neonPassword,
-          useSSL: true,
-        );
-      }
+  // Message queue for offline support
+  final List<Map<String, dynamic>> _messageQueue = [];
+  
+  // Reconnection variables
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  final int _maxReconnectAttempts = 5;
+  
+  // Authentication completer
+  Completer<bool>? _authCompleter;
+  Timer? _authTimeoutTimer;
+  final Duration _authTimeout = const Duration(seconds: 10);
+  
+  // Heartbeat timer
+  Timer? _heartbeatTimer;
+  final Duration _heartbeatInterval = const Duration(seconds: 30);
+  int _missedHeartbeats = 0;
+  final int _maxMissedHeartbeats = 3;
+  
+  // Session information
+  String? _sessionId;
+  String? _userId;
+  String? _authToken;
+  bool _isHost = false;
+  List<ChatParticipant> _participants = [];
 
-      await _connection?.open();
-      _isConnected = true;
-
-      if (kDebugMode) {
-        print('Connected to Neon PostgreSQL database');
-      }
-
-      // Ensure tables exist
-      await _createTablesIfNeeded();
-    } catch (e) {
-      _isConnected = false;
-      if (kDebugMode) {
-        print('Failed to connect to database: $e');
-      }
-      rethrow;
-    }
-  }
-
-  /// Create necessary tables if they don't exist
-  Future<void> _createTablesIfNeeded() async {
-    // This creates the tables if they don't exist yet
-    await _executeQuery('''
-      CREATE TABLE IF NOT EXISTS profiles (
-        id UUID PRIMARY KEY,
-        email TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-        last_login TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        is_premium BOOLEAN DEFAULT FALSE
-      );
-
-      CREATE TABLE IF NOT EXISTS chat_messages_sync (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL,
-        session_id TEXT NOT NULL,
-        local_id TEXT NOT NULL,
-        is_user BOOLEAN NOT NULL,
-        message TEXT NOT NULL,
-        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        UNIQUE(user_id, local_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS journal_entries_sync (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL,
-        local_id TEXT NOT NULL,
-        title TEXT,
-        content TEXT NOT NULL,
-        tags TEXT[],
-        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        UNIQUE(user_id, local_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS mood_entries_sync (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL,
-        local_id TEXT NOT NULL,
-        mood_type TEXT NOT NULL,
-        intensity INTEGER NOT NULL,
-        note TEXT,
-        timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        UNIQUE(user_id, local_id)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_profile_email ON profiles(email);
-      CREATE INDEX IF NOT EXISTS idx_chat_user_session ON chat_messages_sync(user_id, session_id);
-      CREATE INDEX IF NOT EXISTS idx_journal_user_timestamp ON journal_entries_sync(user_id, timestamp);
-      CREATE INDEX IF NOT EXISTS idx_mood_user_timestamp ON mood_entries_sync(user_id, timestamp);
-    ''');
-  }
-
-  /// Ensure connection is active before executing queries
-  Future<void> _reconnectIfNeeded() async {
-    if (_connection == null || !_isConnected) {
-      await initialize();
-    }
-  }
-
-  /// Execute a query with retry logic
-  Future<List<Map<String, dynamic>>> _executeQuery(
-    String query, {
-    Map<String, dynamic>? substitutionValues,
-    int retryCount = 0,
+  // Connect to the WebSocket server
+  Future<bool> connect({
+    required String userId,
+    required String authToken,
+    String? sessionId,
+    bool isHost = false,
   }) async {
-    await _reconnectIfNeeded();
+    // Prevent multiple connection attempts
+    if (_status == ConnectionStatus.connecting || 
+        _status == ConnectionStatus.reconnecting ||
+        _status == ConnectionStatus.authenticating) {
+      debugPrint('Connection already in progress, status: $_status');
+      return false;
+    }
+    
+    // Allow reconnection if disconnected or in error state
+    if (_status == ConnectionStatus.connected) {
+      debugPrint('Already connected, ignoring connect request');
+      return true;
+    }
+
+    _userId = userId;
+    _authToken = authToken;
+    _sessionId = sessionId;
+    _isHost = isHost;
+
+    _setStatus(ConnectionStatus.connecting);
 
     try {
-      final results = await _connection!.mappedResultsQuery(
-        query,
-        substitutionValues: substitutionValues,
-      );
+      // Use environment configuration to determine WebSocket URL
+      String fullWsUrl;
 
-      // Convert the results to a simpler format
-      final List<Map<String, dynamic>> mappedResults = [];
-      for (final row in results) {
-        final Map<String, dynamic> mappedRow = {};
-        row.forEach((tableName, values) {
-          mappedRow.addAll(values);
-        });
-        mappedResults.add(mappedRow);
+      if (Env.useMockData && Env.isDev()) {
+        // In development with mock data, use a dummy URL that will trigger the mock handler
+        fullWsUrl = 'ws://localhost:0000/mock';
+        debugPrint('Using mock WebSocket connection');
+      } else {
+        // Use configured WebSocket settings
+        final wsBaseUrl = Env.wsBaseUrl;
+        final wsPort = Env.wsPort;
+
+        // Build URL with port if provided
+        final uri = Uri.parse(wsBaseUrl);
+        final wsUri = uri.replace(port: wsPort > 0 ? wsPort : uri.port);
+
+        // Connect to chat endpoint
+        fullWsUrl = '${wsUri.toString()}/chat';
       }
+      debugPrint('Connecting to WebSocket: $fullWsUrl');
 
-      return mappedResults;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Database query error: $e');
-      }
+      // For development with mock data, use a mock channel
+      if (Env.useMockData && Env.isDev() && fullWsUrl.contains('/mock')) {
+        _setupMockWebSocket();
+      } else {
+        _channel = IOWebSocketChannel.connect(
+          fullWsUrl,
+          pingInterval: const Duration(seconds: 20),
+        );
 
-      // If connection lost, try to reconnect
-      if (e.toString().contains('connection closed') &&
-          retryCount < _maxRetries) {
-        _isConnected = false;
-        await _reconnectIfNeeded();
-        return _executeQuery(
-          query,
-          substitutionValues: substitutionValues,
-          retryCount: retryCount + 1,
+        // Listen for messages
+        _channel!.stream.listen(
+          _handleMessage,
+          onDone: _handleDisconnect,
+          onError: _handleError,
+          cancelOnError: false,
         );
       }
 
-      rethrow;
+      // Authenticate after connection
+      final authSuccess = await _authenticate();
+      if (!authSuccess) {
+        _setStatus(ConnectionStatus.error);
+        _emitError('Authentication failed');
+        return false;
+      }
+
+      // Start heartbeat
+      _startHeartbeat();
+      
+      // If we have a session ID, join it
+      if (_sessionId != null) {
+        joinSession(_sessionId!, isHost: _isHost);
+      }
+
+      _setStatus(ConnectionStatus.connected);
+      _reconnectAttempts = 0;
+      
+      // Process any queued messages
+      _processMessageQueue();
+      
+      return true;
+    } catch (e) {
+      debugPrint('WebSocket connection error: $e');
+      _handleError(e);
+      return false;
     }
   }
 
-  /// Execute a transaction with multiple queries
-  /// This is a utility method for future use when we need to execute multiple queries in a transaction
-  Future<void> executeTransaction(
-      List<String> queries, List<Map<String, dynamic>> valuesList) async {
-    await _reconnectIfNeeded();
+  // Process queued messages
+  void _processMessageQueue() {
+    if (_messageQueue.isEmpty || _status != ConnectionStatus.connected) {
+      return;
+    }
+    
+    debugPrint('Processing ${_messageQueue.length} queued messages');
+    
+    // Create a copy of the queue to avoid modification during iteration
+    final queueCopy = List<Map<String, dynamic>>.from(_messageQueue);
+    _messageQueue.clear();
+    
+    // Send each queued message
+    for (final message in queueCopy) {
+      send(message);
+    }
+  }
 
-    try {
-      await _connection!.transaction((connection) async {
-        for (int i = 0; i < queries.length; i++) {
-          await connection.execute(
-            queries[i],
-            substitutionValues: i < valuesList.length ? valuesList[i] : null,
+  // Start heartbeat mechanism
+  void _startHeartbeat() {
+    _cancelHeartbeat();
+    _missedHeartbeats = 0;
+    
+    _heartbeatTimer = Timer.periodic(_heartbeatInterval, (_) {
+      if (_status == ConnectionStatus.connected) {
+        send({
+          'type': 'heartbeat',
+          'timestamp': DateTime.now().toIso8601String(),
+        }).then((sent) {
+          if (!sent) {
+            _missedHeartbeats++;
+            debugPrint('Missed heartbeat: $_missedHeartbeats');
+            
+            if (_missedHeartbeats >= _maxMissedHeartbeats) {
+              debugPrint('Too many missed heartbeats, reconnecting...');
+              _handleDisconnect();
+            }
+          } else {
+            _missedHeartbeats = 0;
+          }
+        });
+      }
+    });
+  }
+
+  // Cancel heartbeat timer
+  void _cancelHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
+  // Send a message with offline support
+  Future<bool> send(Map<String, dynamic> message) async {
+    // If not connected, queue the message for later
+    if (_status != ConnectionStatus.connected) {
+      _messageQueue.add(message);
+      
+      // If disconnected, try to reconnect
+      if (_status == ConnectionStatus.disconnected || _status == ConnectionStatus.error) {
+        if (_userId != null && _authToken != null) {
+          connect(
+            userId: _userId!,
+            authToken: _authToken!,
+            sessionId: _sessionId,
+            isHost: _isHost,
           );
         }
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print('Database transaction error: $e');
       }
-      rethrow;
+      
+      return false;
     }
-  }
 
-  //================================
-  // USER PROFILE OPERATIONS
-  //================================
-
-  /// Create a new user profile
-  Future<void> createUserProfile(String userId, String email) async {
     try {
-      await _executeQuery(
-        'INSERT INTO profiles (id, email, created_at, last_login) '
-        'VALUES (@id, @email, @created_at, @last_login) '
-        'ON CONFLICT (id) DO NOTHING',
-        substitutionValues: {
-          'id': userId,
-          'email': email,
-          'created_at': DateTime.now().toIso8601String(),
-          'last_login': DateTime.now().toIso8601String(),
-        },
-      );
+      _channel?.sink.add(jsonEncode(message));
+      return true;
     } catch (e) {
-      if (kDebugMode) {
-        print('Create user profile error: $e');
-      }
-      rethrow;
+      debugPrint('Error sending message: $e');
+      _messageQueue.add(message);
+      return false;
     }
   }
 
-  /// Update last login timestamp
-  Future<void> updateLastLogin(String userId) async {
+  // Authenticate with the server
+  Future<bool> _authenticate() async {
+    if (_userId == null || _authToken == null) {
+      _emitError('Cannot authenticate: userId or authToken is null');
+      return false;
+    }
+
+    _setStatus(ConnectionStatus.authenticating);
+    
+    // Create a completer to handle the auth response
+    _authCompleter = Completer<bool>();
+    
+    // Set timeout for authentication
+    _authTimeoutTimer = Timer(_authTimeout, () {
+      if (_authCompleter != null && !_authCompleter!.isCompleted) {
+        _authCompleter!.complete(false);
+        _emitError('Authentication timeout after ${_authTimeout.inSeconds} seconds');
+      }
+    });
+
+    // Send auth message
+    final messageSent = await send({
+      'type': 'auth',
+      'userId': _userId,
+      'token': _authToken,
+    });
+    
+    if (!messageSent) {
+      _cancelAuthTimeout();
+      return false;
+    }
+    
     try {
-      await _executeQuery(
-        'UPDATE profiles SET last_login = @last_login WHERE id = @id',
-        substitutionValues: {
-          'id': userId,
-          'last_login': DateTime.now().toIso8601String(),
-        },
-      );
+      // Wait for auth response
+      final result = await _authCompleter!.future;
+      return result;
     } catch (e) {
-      if (kDebugMode) {
-        print('Update last login error: $e');
-      }
-      rethrow;
+      _emitError('Authentication error: $e');
+      return false;
+    } finally {
+      _cancelAuthTimeout();
     }
   }
 
-  /// Get user profile data
-  Future<Map<String, dynamic>?> getUserProfile(String userId) async {
-    try {
-      final results = await _executeQuery(
-        'SELECT * FROM profiles WHERE id = @id',
-        substitutionValues: {'id': userId},
-      );
-
-      if (results.isNotEmpty) {
-        return results.first;
-      }
-      return null;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Get user profile error: $e');
-      }
-      rethrow;
-    }
+  // Cancel authentication timeout
+  void _cancelAuthTimeout() {
+    _authTimeoutTimer?.cancel();
+    _authTimeoutTimer = null;
   }
 
-  /// Update premium status
-  Future<void> updatePremiumStatus(String userId, bool isPremium) async {
-    try {
-      await _executeQuery(
-        'UPDATE profiles SET is_premium = @is_premium WHERE id = @id',
-        substitutionValues: {
-          'id': userId,
-          'is_premium': isPremium,
-        },
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('Update premium status error: $e');
-      }
-      rethrow;
-    }
-  }
-
-  //================================
-  // CHAT OPERATIONS
-  //================================
-
-  /// Sync chat messages to cloud
-  Future<void> syncChatMessages(
-    String userId,
-    String sessionId,
-    List<Map<String, dynamic>> messages,
-  ) async {
-    try {
-      for (final message in messages) {
-        await _executeQuery(
-          'INSERT INTO chat_messages_sync (user_id, session_id, local_id, is_user, message, timestamp) '
-          'VALUES (@user_id, @session_id, @local_id, @is_user, @message, @timestamp) '
-          'ON CONFLICT (user_id, local_id) DO UPDATE SET '
-          'message = EXCLUDED.message, '
-          'timestamp = EXCLUDED.timestamp',
-          substitutionValues: {
-            'user_id': userId,
-            'session_id': sessionId,
-            'local_id': message['local_id'],
-            'is_user': message['is_user'],
-            'message': message['message'],
-            'timestamp': message['timestamp'],
-          },
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Sync chat messages error: $e');
-      }
-      rethrow;
-    }
-  }
-
-  /// Get chat messages by session
-  Future<List<Map<String, dynamic>>> getChatMessages(
-    String userId,
+  // Join a chat session
+  void joinSession(
     String sessionId, {
-    int limit = 50,
-    int offset = 0,
-  }) async {
-    try {
-      return await _executeQuery(
-        'SELECT * FROM chat_messages_sync '
-        'WHERE user_id = @user_id AND session_id = @session_id '
-        'ORDER BY timestamp DESC '
-        'LIMIT @limit OFFSET @offset',
-        substitutionValues: {
-          'user_id': userId,
-          'session_id': sessionId,
-          'limit': limit,
-          'offset': offset,
-        },
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('Get chat messages error: $e');
+    bool isHost = false,
+    String? name,
+    int? duration,
+    bool isMultiUser = false,
+  }) {
+    _sessionId = sessionId;
+    _isHost = isHost;
+
+    send({
+      'type': 'join_session',
+      'sessionId': sessionId,
+      'isHost': isHost,
+      'name': name ?? _userId,
+      'duration': duration,
+      'isMultiUser': isMultiUser,
+    });
+  }
+
+  // Leave the current session
+  void leaveSession() {
+    if (_sessionId == null) return;
+
+    send({
+      'type': 'leave_session',
+      'sessionId': _sessionId,
+    });
+
+    _sessionId = null;
+    _isHost = false;
+    _participants = [];
+  }
+
+  // Send a chat message
+  void sendMessage(String content, {bool requestAIResponse = true}) {
+    if (_sessionId == null) {
+      _emitError('Cannot send message: Not in a session');
+      return;
+    }
+
+    final message = {
+      'type': 'chat_message',
+      'sessionId': _sessionId,
+      'content': content,
+      'requestAIResponse': requestAIResponse,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    
+    send(message);
+  }
+
+  // Send typing indicator
+  void sendTypingIndicator(bool isTyping) {
+    if (_sessionId == null) return;
+
+    send({
+      'type': 'typing',
+      'sessionId': _sessionId,
+      'userId': _userId,
+      'isTyping': isTyping,
+    });
+  }
+
+  // Invite a user to the current session
+  void inviteUser(String email, {String? message}) {
+    if (_sessionId == null || !_isHost) {
+      _emitError('Cannot invite user: Not a host or not in a session');
+      return;
+    }
+
+    send({
+      'type': 'invite_user',
+      'sessionId': _sessionId,
+      'email': email,
+      'message': message,
+    });
+  }
+
+  // Remove a user from the current session
+  void removeUser(String userId) {
+    if (_sessionId == null || !_isHost) {
+      _emitError('Cannot remove user: Not a host or not in a session');
+      return;
+    }
+
+    send({
+      'type': 'remove_user',
+      'sessionId': _sessionId,
+      'userId': userId,
+    });
+  }
+
+  // Setup mock WebSocket for development
+  void _setupMockWebSocket() {
+    debugPrint('Setting up mock WebSocket');
+    // Create a StreamController to simulate WebSocket messages
+    final controller = StreamController<dynamic>.broadcast();
+
+    // Create a mock channel
+    _channel = WebSocketChannel.connect(Uri.parse('ws://localhost:0000/mock'))
+      ..sink.done.catchError((e) {});
+
+    // Override the stream with our controlled stream
+    (_channel as dynamic).stream = controller.stream;
+
+    // Simulate connection success
+    Future.delayed(const Duration(milliseconds: 500), () {
+      // Simulate authentication success response
+      controller.add(jsonEncode({
+        'type': 'auth_success',
+        'userId': _userId,
+      }));
+      
+      // Complete the auth completer
+      if (_authCompleter != null && !_authCompleter!.isCompleted) {
+        _authCompleter!.complete(true);
       }
-      rethrow;
+      
+      // If we have a session ID, simulate joining
+      if (_sessionId != null) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          controller.add(jsonEncode({
+            'type': 'session_joined',
+            'sessionId': _sessionId,
+            'participants': [
+              {
+                'userId': _userId,
+                'name': 'You',
+                'isHost': _isHost,
+                'isAI': false,
+              },
+              {
+                'userId': 'ai_assistant',
+                'name': 'KounselMe AI',
+                'isHost': false,
+                'isAI': true,
+              }
+            ],
+          }));
+          
+          // Simulate AI greeting
+          Future.delayed(const Duration(seconds: 1), () {
+            controller.add(jsonEncode({
+              'type': 'chat_message',
+              'sessionId': _sessionId,
+              'userId': 'ai_assistant',
+              'content': 'Hello! How can I help you today?',
+              'timestamp': DateTime.now().toIso8601String(),
+            }));
+          });
+        });
+      }
+    });
+
+    // Setup a timer to handle mock responses
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      // If disconnected, stop the timer
+      if (_status == ConnectionStatus.disconnected) {
+        timer.cancel();
+        controller.close();
+        return;
+      }
+    });
+  }
+
+  // Handle incoming message
+  void _handleMessage(dynamic data) {
+    try {
+      final message = jsonDecode(data as String) as Map<String, dynamic>;
+      _messageController.add(message);
+
+      // Handle specific message types
+      final type = message['type'] as String?;
+
+      switch (type) {
+        case 'auth_success':
+          if (_authCompleter != null && !_authCompleter!.isCompleted) {
+            _authCompleter!.complete(true);
+          }
+          break;
+          
+        case 'heartbeat_ack':
+          _missedHeartbeats = 0;
+          break;
+          
+        case 'chat_message':
+          // No additional processing needed, already sent to message stream
+          break;
+          
+        case 'typing':
+          _typingController.add({
+            'userId': message['userId'],
+            'isTyping': message['isTyping'],
+          });
+          break;
+          
+        case 'session_joined':
+        case 'participant_update':
+          if (message['participants'] != null) {
+            final participantsList = (message['participants'] as List)
+                .map((p) => ChatParticipant.fromJson(p as Map<String, dynamic>))
+                .toList();
+            _participants = participantsList;
+            _participantController.add(_participants);
+          }
+          break;
+          
+        case 'error':
+          final errorMsg = message['message'] as String? ?? 'Unknown error';
+          debugPrint('WebSocket error: $errorMsg');
+          _emitError(errorMsg);
+          
+          // If it's an auth error, complete the auth completer with error
+          if (_status == ConnectionStatus.authenticating && 
+              _authCompleter != null && 
+              !_authCompleter!.isCompleted) {
+            _authCompleter!.complete(false);
+          }
+          break;
+      }
+    } catch (e) {
+      debugPrint('Error processing WebSocket message: $e');
     }
   }
 
-  /// Get chat sessions for a user
-  Future<List<Map<String, dynamic>>> getChatSessions(String userId) async {
-    try {
-      return await _executeQuery(
-        'SELECT DISTINCT session_id, MAX(timestamp) as last_message_time '
-        'FROM chat_messages_sync '
-        'WHERE user_id = @user_id '
-        'GROUP BY session_id '
-        'ORDER BY last_message_time DESC',
-        substitutionValues: {'user_id': userId},
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('Get chat sessions error: $e');
-      }
-      rethrow;
+  // Handle WebSocket disconnect
+  void _handleDisconnect() {
+    debugPrint('WebSocket disconnected');
+
+    if (_status != ConnectionStatus.disconnected) {
+      _setStatus(ConnectionStatus.disconnected);
+      _attemptReconnect();
     }
   }
 
-  //================================
-  // JOURNAL OPERATIONS
-  //================================
+  // Handle WebSocket error
+  void _handleError(dynamic error) {
+    final errorMsg = error.toString();
+    debugPrint('WebSocket error: $errorMsg');
+    _emitError('Connection error: $errorMsg');
 
-  /// Sync journal entries to cloud
-  Future<void> syncJournalEntries(
-    String userId,
-    List<Map<String, dynamic>> entries,
-  ) async {
-    try {
-      for (final entry in entries) {
-        await _executeQuery(
-          'INSERT INTO journal_entries_sync (user_id, local_id, title, content, tags, timestamp) '
-          'VALUES (@user_id, @local_id, @title, @content, @tags, @timestamp) '
-          'ON CONFLICT (user_id, local_id) DO UPDATE SET '
-          'title = EXCLUDED.title, '
-          'content = EXCLUDED.content, '
-          'tags = EXCLUDED.tags, '
-          'timestamp = EXCLUDED.timestamp',
-          substitutionValues: {
-            'user_id': userId,
-            'local_id': entry['local_id'],
-            'title': entry['title'],
-            'content': entry['content'],
-            'tags': entry['tags'],
-            'timestamp': entry['timestamp'],
-          },
+    if (_status != ConnectionStatus.disconnected) {
+      _setStatus(ConnectionStatus.error);
+      _attemptReconnect();
+    }
+  }
+
+  // Emit error to error stream
+  void _emitError(String error) {
+    _errorController.add(error);
+  }
+
+  // Attempt to reconnect with exponential backoff
+  void _attemptReconnect() {
+    if (_reconnectAttempts >= _maxReconnectAttempts) {
+      debugPrint('Maximum reconnection attempts reached');
+      _emitError('Failed to reconnect after $_maxReconnectAttempts attempts');
+      return;
+    }
+
+    _setStatus(ConnectionStatus.reconnecting);
+    _cancelReconnect();
+    _cancelHeartbeat();
+
+    // Calculate backoff delay with exponential increase
+    final delay = Duration(
+      milliseconds: (1000 * 
+          pow(1.5, _reconnectAttempts)).round()
+    );
+
+    debugPrint('Attempting to reconnect in ${delay.inSeconds} seconds... (Attempt ${_reconnectAttempts + 1}/$_maxReconnectAttempts)');
+
+    _reconnectTimer = Timer(delay, () {
+      _reconnectAttempts++;
+      
+      if (_userId != null && _authToken != null) {
+        connect(
+          userId: _userId!,
+          authToken: _authToken!,
+          sessionId: _sessionId,
+          isHost: _isHost,
         );
+      } else {
+        _emitError('Cannot reconnect: Missing user credentials');
+        _setStatus(ConnectionStatus.error);
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Sync journal entries error: $e');
-      }
-      rethrow;
-    }
+    });
   }
 
-  /// Get journal entries for a user
-  Future<List<Map<String, dynamic>>> getJournalEntries(
-    String userId, {
-    int limit = 20,
-    int offset = 0,
-  }) async {
-    try {
-      return await _executeQuery(
-        'SELECT * FROM journal_entries_sync '
-        'WHERE user_id = @user_id '
-        'ORDER BY timestamp DESC '
-        'LIMIT @limit OFFSET @offset',
-        substitutionValues: {
-          'user_id': userId,
-          'limit': limit,
-          'offset': offset,
-        },
-      );
-    } catch (e) {
-      if (kDebugMode) {
-        print('Get journal entries error: $e');
-      }
-      rethrow;
-    }
+  // Cancel reconnection attempt
+  void _cancelReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
   }
 
-  //================================
-  // MOOD TRACKING OPERATIONS
-  //================================
-
-  /// Sync mood entries to cloud
-  Future<void> syncMoodEntries(
-    String userId,
-    List<Map<String, dynamic>> entries,
-  ) async {
-    try {
-      for (final entry in entries) {
-        await _executeQuery(
-          'INSERT INTO mood_entries_sync (user_id, local_id, mood_type, intensity, note, timestamp) '
-          'VALUES (@user_id, @local_id, @mood_type, @intensity, @note, @timestamp) '
-          'ON CONFLICT (user_id, local_id) DO UPDATE SET '
-          'mood_type = EXCLUDED.mood_type, '
-          'intensity = EXCLUDED.intensity, '
-          'note = EXCLUDED.note, '
-          'timestamp = EXCLUDED.timestamp',
-          substitutionValues: {
-            'user_id': userId,
-            'local_id': entry['local_id'],
-            'mood_type': entry['mood_type'],
-            'intensity': entry['intensity'],
-            'note': entry['note'],
-            'timestamp': entry['timestamp'],
-          },
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Sync mood entries error: $e');
-      }
-      rethrow;
-    }
+  // Update connection status
+  void _setStatus(ConnectionStatus status) {
+    _status = status;
+    _statusController.add(status);
   }
 
-  /// Get mood entries for a user
-  Future<List<Map<String, dynamic>>> getMoodEntries(
-    String userId, {
-    DateTime? startDate,
-    DateTime? endDate,
-    int limit = 30,
-  }) async {
-    try {
-      String query = 'SELECT * FROM mood_entries_sync WHERE user_id = @user_id';
-      final Map<String, dynamic> values = {'user_id': userId};
+  // Get current participants
+  List<ChatParticipant> get participants => _participants;
 
-      if (startDate != null) {
-        query += ' AND timestamp >= @start_date';
-        values['start_date'] = startDate.toIso8601String();
-      }
+  // Check if user is host
+  bool get isHost => _isHost;
 
-      if (endDate != null) {
-        query += ' AND timestamp <= @end_date';
-        values['end_date'] = endDate.toIso8601String();
-      }
-
-      query += ' ORDER BY timestamp DESC LIMIT @limit';
-      values['limit'] = limit;
-
-      return await _executeQuery(query, substitutionValues: values);
-    } catch (e) {
-      if (kDebugMode) {
-        print('Get mood entries error: $e');
-      }
-      rethrow;
-    }
-  }
-
-  /// Get mood trends for a time period
-  Future<Map<String, dynamic>> getMoodTrends(
-    String userId, {
-    required DateTime startDate,
-    required DateTime endDate,
-  }) async {
-    try {
-      final results = await _executeQuery(
-        '''
-        SELECT
-          mood_type,
-          AVG(intensity) as avg_intensity,
-          COUNT(*) as count
-        FROM mood_entries_sync
-        WHERE user_id = @user_id
-          AND timestamp BETWEEN @start_date AND @end_date
-        GROUP BY mood_type
-        ORDER BY avg_intensity DESC
-        ''',
-        substitutionValues: {
-          'user_id': userId,
-          'start_date': startDate.toIso8601String(),
-          'end_date': endDate.toIso8601String(),
-        },
-      );
-
-      // Process the results into a trends map
-      final Map<String, dynamic> trends = {
-        'period_start': startDate.toIso8601String(),
-        'period_end': endDate.toIso8601String(),
-        'mood_types': <String, Map<String, dynamic>>{},
-      };
-
-      for (final result in results) {
-        trends['mood_types'][result['mood_type']] = {
-          'average_intensity': result['avg_intensity'],
-          'count': result['count'],
-        };
-      }
-
-      return trends;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Get mood trends error: $e');
-      }
-      rethrow;
-    }
-  }
-
-  /// Close the database connection
-  Future<void> close() async {
-    await _connection?.close();
-    _isConnected = false;
+  // Dispose resources
+  void dispose() {
+    _cancelReconnect();
+    _cancelHeartbeat();
+    _cancelAuthTimeout();
+    _channel?.sink.close();
+    _channel = null;
+    _messageController.close();
+    _statusController.close();
+    _errorController.close();
+    _typingController.close();
+    _participantController.close();
   }
 }

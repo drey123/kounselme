@@ -1,0 +1,3 @@
+@echo off
+echo Running KounselMe Chat Test App...
+flutter run -t lib/chat_test_app.dart

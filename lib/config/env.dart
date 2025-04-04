@@ -2,133 +2,174 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-enum Environment {
-  dev,
-  prod,
-}
-
+/// Environment configuration for the app
 class Env {
   // Private constructor to prevent instantiation
   Env._();
 
+  // Environment types
+  static const String _dev = 'development';
+  static const String _staging = 'staging';
+  static const String _prod = 'production';
+
   // Current environment
-  static Environment _environment = Environment.dev;
-  static Environment get environment => _environment;
+  static String _environment = _dev;
 
-  // API URLs
-  static String backendUrl = '';
-  static String wsBaseUrl = '';
-  static int wsPort = 0;
+  // Initialize environment
+  static Future<void> initialize() async {
+    try {
+      // Load environment variables from .env file
+      await dotenv.load();
 
-  // Supabase
-  static String supabaseUrl = '';
-  static String supabaseAnonKey = '';
+      // Set environment from .env file or default to development
+      _environment = dotenv.env['ENVIRONMENT'] ?? _dev;
 
-  // Neon Database
-  static String neonDatabaseUrl = '';
-  static String neonHost = '';
-  static int neonPort = 5432;
-  static String neonDatabase = '';
-  static String neonUsername = '';
-  static String neonPassword = '';
+      debugPrint('Environment: $_environment');
+    } catch (e) {
+      debugPrint('Error loading environment: $e');
+      _environment = _dev;
+    }
+  }
 
-  // API Keys - only include in production, use dummy/test keys in dev
-  static String openaiApiKey = '';
+  // Check if current environment is development
+  static bool isDev() => _environment == _dev;
 
-  // Feature Flags
-  static bool enableVoiceTranscription = false;
-  static bool enableMultiUser = false;
-  static bool enableOfflineMode = false;
-  static bool useMockData = true; // For testing without backend
+  // Check if current environment is staging
+  static bool isStaging() => _environment == _staging;
 
-  // Chat settings
-  static int defaultSessionLengthMinutes = 30;
-  static int freeSessionCooldownMinutes = 120;
-  static int maxSessionLengthMinutes = 60;
-  static int maxMonthlyMinutesFree = 60; // 1 hour/month free plan
+  // Check if current environment is production
+  static bool isProd() => _environment == _prod;
 
-  // Development convenience settings
-  static String devUserId = 'dev_user_123';
-  static String devAuthToken = 'dev_token_abc';
+  // Get current environment
+  static String get environment => _environment;
 
-  // Initialize the environment
-  static Future<void> initialize({Environment env = Environment.dev}) async {
+  // Set environment manually (useful for testing)
+  static void setEnvironment(String env) {
+    assert(env == _dev || env == _staging || env == _prod);
     _environment = env;
+  }
 
-    // Load the appropriate .env file
-    final envFile = _environment == Environment.prod ? '.env.prod' : '.env.dev';
-    await dotenv.load(fileName: envFile);
+  // Backend URL (alias for apiBaseUrl for compatibility)
+  static String get backendUrl => apiBaseUrl;
 
-    // Set up values from .env file
-    backendUrl = dotenv.env['BACKEND_URL'] ?? _getDefaultBackendUrl();
-    wsBaseUrl = dotenv.env['WS_BASE_URL'] ?? _getDefaultWsUrl();
-    wsPort = int.parse(dotenv.env['WS_PORT'] ?? '3001');
-
-    // Supabase
-    supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
-    supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
-
-    // Neon Database
-    neonDatabaseUrl = dotenv.env['NEON_DATABASE_URL'] ?? '';
-    neonHost = dotenv.env['NEON_HOST'] ?? 'localhost';
-    neonPort = int.parse(dotenv.env['NEON_PORT'] ?? '5432');
-    neonDatabase = dotenv.env['NEON_DATABASE'] ?? 'kounselme';
-    neonUsername = dotenv.env['NEON_USERNAME'] ?? '';
-    neonPassword = dotenv.env['NEON_PASSWORD'] ?? '';
-
-    openaiApiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
-
-    // Feature flags
-    enableVoiceTranscription = dotenv.env['ENABLE_VOICE'] == 'true';
-    enableMultiUser = dotenv.env['ENABLE_MULTI_USER'] == 'true';
-    enableOfflineMode = dotenv.env['ENABLE_OFFLINE'] == 'true';
-    useMockData =
-        env == Environment.dev && dotenv.env['USE_MOCK_DATA'] == 'true';
-
-    // Chat settings
-    defaultSessionLengthMinutes =
-        int.parse(dotenv.env['DEFAULT_SESSION_LENGTH'] ?? '30');
-    freeSessionCooldownMinutes =
-        int.parse(dotenv.env['FREE_SESSION_COOLDOWN'] ?? '120');
-    maxSessionLengthMinutes =
-        int.parse(dotenv.env['MAX_SESSION_LENGTH'] ?? '60');
-    maxMonthlyMinutesFree =
-        int.parse(dotenv.env['MAX_MONTHLY_MINUTES_FREE'] ?? '60');
-
-    // Dev user credentials for testing
-    if (env == Environment.dev) {
-      devUserId = dotenv.env['DEV_USER_ID'] ?? 'dev_user_123';
-      devAuthToken = dotenv.env['DEV_AUTH_TOKEN'] ?? 'dev_token_abc';
-    }
-
-    // Log configuration in debug mode
-    if (kDebugMode) {
-      print('=== KounselMe Initialized in ${env.name.toUpperCase()} mode ===');
-      print('Backend URL: $backendUrl');
-      print('WebSocket URL: $wsBaseUrl (port: $wsPort)');
-      print('Voice transcription enabled: $enableVoiceTranscription');
-      print('Multi-user enabled: $enableMultiUser');
-      print('Using mock data: $useMockData');
+  // API Base URL
+  static String get apiBaseUrl {
+    if (isProd()) {
+      return dotenv.env['PROD_API_URL'] ?? 'https://api.kounselme.com';
+    } else if (isStaging()) {
+      return dotenv.env['STAGING_API_URL'] ??
+          'https://staging-api.kounselme.com';
+    } else {
+      return dotenv.env['DEV_API_URL'] ?? 'http://localhost:3000';
     }
   }
 
-  // Helper method to get default backend URL based on environment
-  static String _getDefaultBackendUrl() {
-    return _environment == Environment.prod
-        ? 'https://api.kounselme.com/api/v1'
-        : 'http://localhost:3000/api/v1';
+  // WebSocket Base URL
+  static String get wsBaseUrl {
+    if (isProd()) {
+      return dotenv.env['PROD_WS_URL'] ?? 'wss://api.kounselme.com';
+    } else if (isStaging()) {
+      return dotenv.env['STAGING_WS_URL'] ?? 'wss://staging-api.kounselme.com';
+    } else {
+      return dotenv.env['DEV_WS_URL'] ?? 'ws://localhost:3000';
+    }
   }
 
-  // Helper method to get default WebSocket URL based on environment
-  static String _getDefaultWsUrl() {
-    return _environment == Environment.prod
-        ? 'wss://api.kounselme.com'
-        : 'ws://localhost';
+  // WebSocket Port
+  static int get wsPort {
+    try {
+      if (isProd()) {
+        return int.parse(dotenv.env['PROD_WS_PORT'] ?? '0');
+      } else if (isStaging()) {
+        return int.parse(dotenv.env['STAGING_WS_PORT'] ?? '0');
+      } else {
+        return int.parse(dotenv.env['DEV_WS_PORT'] ?? '0');
+      }
+    } catch (e) {
+      return 0; // Default to 0 (use default port)
+    }
   }
 
-  // Helper method to check if we're in production
-  static bool isProd() => _environment == Environment.prod;
+  // API Version
+  static String get apiVersion => dotenv.env['API_VERSION'] ?? 'v1';
 
-  // Helper method to check if we're in development
-  static bool isDev() => _environment == Environment.dev;
+  // Use mock data (for development and testing)
+  static bool _forceMockData = false;
+
+  static bool get useMockData {
+    if (_forceMockData) return true;
+    if (isProd()) return false;
+    return dotenv.env['USE_MOCK_DATA'] == 'true';
+  }
+
+  // Set mock data flag manually (useful for testing)
+  static void setUseMockData(bool useMock) {
+    _forceMockData = useMock;
+  }
+
+  // OpenAI API Key
+  static String get openAiApiKey => dotenv.env['OPENAI_API_KEY'] ?? '';
+
+  // Together.ai API Key
+  static String get togetherAiApiKey => dotenv.env['TOGETHER_AI_API_KEY'] ?? '';
+
+  // Supabase URL
+  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+
+  // Supabase Anonymous Key
+  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+
+  // App Base URL (for invite links, etc.)
+  static String get appBaseUrl {
+    if (isProd()) {
+      return dotenv.env['PROD_APP_URL'] ?? 'https://kounselme.app';
+    } else if (isStaging()) {
+      return dotenv.env['STAGING_APP_URL'] ?? 'https://staging.kounselme.app';
+    } else {
+      return dotenv.env['DEV_APP_URL'] ?? 'http://localhost:3000';
+    }
+  }
+
+  // Connection Timeout (in milliseconds)
+  static int get connectionTimeout {
+    if (isProd()) {
+      return int.tryParse(dotenv.env['PROD_CONNECTION_TIMEOUT'] ?? '') ?? 30000;
+    } else if (isStaging()) {
+      return int.tryParse(dotenv.env['STAGING_CONNECTION_TIMEOUT'] ?? '') ?? 20000;
+    } else {
+      return int.tryParse(dotenv.env['DEV_CONNECTION_TIMEOUT'] ?? '') ?? 10000;
+    }
+  }
+
+  // Get full API URL with version
+  static String getApiUrl(String endpoint) {
+    final baseUrl = apiBaseUrl;
+    final version = apiVersion;
+
+    // Ensure endpoint starts with '/'
+    final path = endpoint.startsWith('/') ? endpoint : '/$endpoint';
+
+    return '$baseUrl/$version$path';
+  }
+
+  // Get full app URL (for invite links, etc.)
+  static String getAppUrl(String path) {
+    final baseUrl = appBaseUrl;
+    
+    // Ensure path starts with '/'
+    final formattedPath = path.startsWith('/') ? path : '/$path';
+
+    return '$baseUrl$formattedPath';
+  }
+
+  // Toggle mock data (for development and testing)
+  static void toggleMockData() {
+    if (isProd()) return;
+
+    final currentValue = dotenv.env['USE_MOCK_DATA'];
+    final newValue = currentValue == 'true' ? 'false' : 'true';
+
+    dotenv.env['USE_MOCK_DATA'] = newValue;
+    debugPrint('Mock data: $newValue');
+  }
 }

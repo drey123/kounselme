@@ -4,18 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kounselme/config/app_icons.dart';
 import 'package:kounselme/config/theme_improved.dart';
 
+import 'package:kounselme/domain/models/chat_message.dart';
+import 'package:kounselme/domain/models/chat_history_item.dart' as history;
 import 'package:kounselme/domain/models/chat_participant.dart';
 import 'package:kounselme/domain/providers/chat_provider.dart';
 import 'package:kounselme/presentation/widgets/chat/k_chat_input.dart';
 import 'package:kounselme/presentation/widgets/chat/k_invite_modal.dart';
 import 'package:kounselme/presentation/widgets/chat/k_message_bubble.dart';
 import 'package:kounselme/presentation/widgets/chat/k_participant_list.dart';
+import 'package:kounselme/presentation/widgets/chat/k_chat_history_drawer.dart';
 import 'package:kounselme/presentation/screens/chat/session_dialogs.dart';
 import 'package:kounselme/presentation/widgets/chat/k_session_start_dialog.dart';
 // import 'package:kounselme/presentation/widgets/chat/k_session_timer.dart';
 import 'package:kounselme/presentation/widgets/chat/k_typing_indicator.dart';
 import 'package:kounselme/presentation/widgets/chat/k_time_display.dart';
-import 'package:kounselme/presentation/widgets/chat/k_thinking_indicator.dart';
+// import 'package:kounselme/presentation/widgets/chat/k_thinking_indicator.dart';
 import 'package:kounselme/presentation/widgets/chat/k_time_limit_notification.dart';
 // import 'package:kounselme/presentation/widgets/chat/k_time_purchase_dialog.dart';
 import 'package:kounselme/presentation/widgets/chat/k_voice_input.dart';
@@ -48,6 +51,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isSessionEnded = false;
   bool _isApproachingTimeLimit = false;
   String _sessionTitle = 'Therapy Session';
+
+  // User ID for message ownership
+  final String _userId = 'user123'; // In a real app, this would come from auth
 
   // Sample participants for demo
   final List<ChatParticipant> _participants = [
@@ -100,7 +106,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       // For demo purposes we'll use a fixed user ID and token
       // In a real app, you would get these from your authentication provider
       final chatNotifier = ref.read(chatProvider.notifier);
-      chatNotifier.initialize('user123', 'demo_token');
+      chatNotifier.setCredentials('user123', 'demo_token');
 
       // Connect to WebSocket
       chatNotifier.connect().then((_) {
@@ -128,13 +134,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chatNotifier = ref.read(chatProvider.notifier);
 
     // Join existing session if needed
-    if (widget.sessionStartTime != null) {
-      chatNotifier.joinSession(ref.read(chatProvider).sessionId);
+    if (widget.sessionStartTime != null &&
+        ref.read(chatProvider).sessionId != null) {
+      chatNotifier.joinSession(ref.read(chatProvider).sessionId!);
     }
 
     // Send initial user message if there are no messages
     if (ref.read(chatProvider).messages.isEmpty) {
-      chatNotifier.addUserMessage("I'd like to start my session now.");
+      chatNotifier.sendMessage("I'd like to start my session now.");
     }
   }
 
@@ -221,7 +228,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             // But we'll add it manually if we don't receive it within a second
             Future.delayed(const Duration(seconds: 1), () {
               if (ref.read(chatProvider).messages.isEmpty) {
-                chatNotifier.addUserMessage("I'm ready to start my session.");
+                chatNotifier.sendMessage("I'm ready to start my session.");
               }
             });
           });
@@ -251,7 +258,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: KInviteModal(
-            sessionId: ref.read(chatProvider).sessionId,
+            sessionId: ref.read(chatProvider).sessionId ?? 'temp-session',
             onInvite: _handleInvite,
           ),
         );
@@ -343,6 +350,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      isDismissible: false, // Prevent dismissing by tapping outside
+      enableDrag: false, // Prevent dragging down to dismiss
       builder: (context) {
         return Container(
           padding: const EdgeInsets.only(bottom: 40),
@@ -352,22 +361,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               topLeft: Radius.circular(AppTheme.radiusXL),
               topRight: Radius.circular(AppTheme.radiusXL),
             ),
+            boxShadow: AppTheme.getShadow(
+              elevation: AppTheme.elevationM,
+              shadowColor: AppTheme.codGray,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 20),
-            child: KVoiceInput(
-              onTranscription: (transcription) {
-                // Close the bottom sheet
-                Navigator.pop(context);
+            child: Consumer(builder: (context, ref, _) {
+              final isAIResponding = ref.watch(chatProvider).isLoading;
 
-                // Insert transcription into chat input
-                if (transcription.isNotEmpty) {
-                  // In a real app, you would update the chat input controller
-                  // For now, directly send the transcription as a message
-                  ref.read(chatProvider.notifier).addUserMessage(transcription);
-                }
-              },
-            ),
+              return KVoiceInput(
+                isAIResponding: isAIResponding,
+                onClose: () {
+                  Navigator.pop(context);
+                },
+                onTranscription: (transcription) {
+                  // Update speaking state - user is speaking
+                  _updateSpeakingState(_participants[0].id, true);
+
+                  // Send message via WebSocket
+                  ref.read(chatProvider.notifier).sendMessage(transcription);
+
+                  // After a short delay, user is no longer speaking
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (mounted) {
+                      _updateSpeakingState(_participants[0].id, false);
+                    }
+                  });
+
+                  // Don't close the bottom sheet - allow continuous voice conversation
+                  // as described in the chat user flow
+                },
+              );
+            }),
           ),
         );
       },
@@ -614,7 +641,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (chatState.error != null)
             Container(
               padding: const EdgeInsets.all(8),
-              color: AppTheme.errorLight,
+              color: AppTheme.error.withValues(alpha: 0.1),
               child: Row(
                 children: [
                   Icon(AppIcons.warning, color: AppTheme.error),
@@ -630,7 +657,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   IconButton(
                     icon: Icon(AppIcons.close, color: AppTheme.error),
                     onPressed: () {
-                      ref.read(chatProvider.notifier).clearError();
+                      // Clear error
+                      ref.read(chatProvider.notifier).recordActivity();
                     },
                   ),
                 ],
@@ -662,10 +690,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
 
           // Typing indicator or thinking indicator
-          if (chatState.isLoading && !chatState.isThinking)
-            const KTypingIndicator(),
-          if (chatState.isLoading && chatState.isThinking)
-            const KThinkingIndicator(),
+          if (chatState.isLoading) const KTypingIndicator(),
 
           // Input field
           KChatInput(
@@ -676,7 +701,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               _updateSpeakingState(_participants[0].id, true);
 
               // Send message via WebSocket
-              ref.read(chatProvider.notifier).addUserMessage(message);
+              ref.read(chatProvider.notifier).sendMessage(message);
 
               // After a short delay, user is no longer speaking
               Future.delayed(const Duration(milliseconds: 500), () {
@@ -770,40 +795,64 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       itemCount: chatState.messages.length,
       itemBuilder: (context, index) {
         final message = chatState.messages[index];
+
         // Check if this is a system message (from participant joins/leaves)
         final bool isSystemMessage =
-            !message.isUser && message.content.contains("joined") ||
-                !message.isUser && message.content.contains("left");
+            !message.isAI && message.content.contains("joined") ||
+                !message.isAI && message.content.contains("left");
 
+        // Determine message type
+        MessageType messageType = MessageType.text;
         if (isSystemMessage) {
-          // Display system message as a centered notification
-          return Center(
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: AppTheme.cardDecoration(
-                backgroundColor: AppTheme.snowWhite,
-                borderRadius: AppTheme.radiusL,
-                elevation: AppTheme.elevationXS,
-              ),
-              child: Text(
-                message.content,
-                style: AppTheme.labelM.copyWith(
-                  color: AppTheme.secondaryText,
-                ),
-              ),
-            ),
-          );
-        } else {
-          // Regular chat message
-          return KMessageBubble(
-            message: message.content,
-            isUser: message.isUser,
-            timestamp: message.timestamp,
-          );
+          messageType = MessageType.system;
+        } else if (message.content.startsWith('voice:')) {
+          messageType = MessageType.voice;
+        } else if (message.content.startsWith('http') &&
+            (message.content.endsWith('.jpg') ||
+                message.content.endsWith('.png') ||
+                message.content.endsWith('.jpeg'))) {
+          messageType = MessageType.image;
+        } else if (message.content.startsWith('file:')) {
+          messageType = MessageType.file;
         }
+
+        // Find sender name for multi-user chats
+        String? senderName;
+        if (_isMultiUserSession &&
+            !message.isAI &&
+            !message.userId.contains('user')) {
+          final participant = _participants.firstWhere(
+            (p) => p.id == message.userId,
+            orElse: () => ChatParticipant(name: 'Unknown', id: message.userId),
+          );
+          senderName = participant.name;
+        }
+
+        // Return appropriate message bubble
+        return KMessageBubble(
+          message: messageType == MessageType.voice
+              ? message.content.substring(6) // Remove 'voice:' prefix
+              : messageType == MessageType.file
+                  ? message.content.substring(5) // Remove 'file:' prefix
+                  : message.content,
+          isUser: message.userId == _userId,
+          timestamp: message.timestamp,
+          messageType: messageType,
+          status: message.status,
+          senderName: senderName,
+          onRetry: message.status == MessageStatus.failed
+              ? () => _retryMessage(message)
+              : null,
+        );
       },
     );
+  }
+
+  void _retryMessage(ChatMessage message) {
+    // Implement retry logic
+    final chatNotifier = ref.read(chatProvider.notifier);
+    // Resend the message
+    chatNotifier.sendMessage(message.content);
   }
 
   void _showOptionsMenu(BuildContext context) {
@@ -852,7 +901,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ] else ...[
                 ListTile(
-                  leading: Icon(AppIcons.timerPause, color: AppTheme.yellowSea),
+                  leading: Icon(AppIcons.timerPause, color: AppTheme.warning),
                   title: const Text(
                     'End Session Early',
                     style: TextStyle(fontFamily: 'Inter'),
@@ -997,183 +1046,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildChatHistoryDrawer() {
-    return Drawer(
-      child: Column(
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(
-              color: AppTheme.electricViolet,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Sessions',
-                      style: AppTheme.headingM.copyWith(
-                        color: AppTheme.snowWhite,
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        AppIcons.close,
-                        color: AppTheme.snowWhite,
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: AppTheme.glassDecoration(
-                    baseColor: AppTheme.snowWhite,
-                    opacity: 0.2,
-                    borderRadius: 24,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        AppIcons.search,
-                        color: AppTheme.snowWhite,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Search sessions',
-                          style: AppTheme.bodyS.copyWith(
-                            color: AppTheme.snowWhite,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _chatHistory.length,
-              itemBuilder: (context, index) {
-                final chat = _chatHistory[index];
-                final timestamp = chat['timestamp'] as DateTime;
-                final now = DateTime.now();
-                final difference = now.difference(timestamp);
+    // Convert the chat history data to the format expected by KChatHistoryDrawer
+    final chatHistoryItems = _chatHistory.map((chat) {
+      return ChatHistoryItem(
+        id: chat['id'] as String,
+        title: chat['title'] as String,
+        previewMessage: chat['lastMessage'] as String,
+        timestamp: chat['timestamp'] as DateTime,
+        durationMinutes: 30, // Default duration for demo
+      );
+    }).toList();
 
-                String timeText;
-                if (difference.inDays > 0) {
-                  timeText = '${difference.inDays}d ago';
-                } else if (difference.inHours > 0) {
-                  timeText = '${difference.inHours}h ago';
-                } else {
-                  timeText = '${difference.inMinutes}m ago';
-                }
-
-                return ListTile(
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppTheme.heliotropeLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      AppIcons.chat,
-                      color: AppTheme.electricViolet,
-                      size: 20,
-                    ),
-                  ),
-                  title: Text(
-                    chat['title'] as String,
-                    style: AppTheme.subtitleM,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    chat['lastMessage'] as String,
-                    style: AppTheme.bodyS.copyWith(
-                      color: AppTheme.secondaryText,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        timeText,
-                        style: AppTheme.labelM.copyWith(
-                          color: AppTheme.secondaryText,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.successLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '30 min',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.robinsGreen,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  onTap: () {
-                    // Load the selected chat
-                    Navigator.pop(context);
-                  },
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: InkWell(
-              onTap: () {
-                // Show session start dialog
-                Navigator.pop(context);
-                ref.read(chatProvider.notifier).clearChat();
-                _showSessionStartDialog();
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppTheme.electricViolet,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      AppIcons.addCircle,
-                      color: AppTheme.snowWhite,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'New Session',
-                      style: AppTheme.buttonM,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return KChatHistoryDrawer(
+      chatHistory: chatHistoryItems,
+      onSelectChat: (sessionId) {
+        // In a real app, you would load the selected chat session
+        // For now, we'll just show a message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Loading session $sessionId')),
+        );
+      },
+      onNewChat: () {
+        // Show session start dialog
+        ref.read(chatProvider.notifier).clearChatHistory();
+        _showSessionStartDialog();
+      },
     );
   }
 
@@ -1197,7 +1094,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             TextButton(
               onPressed: () {
-                ref.read(chatProvider.notifier).clearChat();
+                ref.read(chatProvider.notifier).clearChatHistory();
                 Navigator.pop(context);
               },
               style: TextButton.styleFrom(foregroundColor: AppTheme.error),

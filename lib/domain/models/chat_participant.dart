@@ -12,6 +12,7 @@ class ChatParticipant {
   final bool isTyping;
   final bool isOnline;
   final bool isHost;
+  final String userId;
 
   ChatParticipant({
     String? id,
@@ -23,8 +24,10 @@ class ChatParticipant {
     this.isTyping = false,
     this.isOnline = true,
     this.isHost = false,
+    String? userId,
   })  : id = id ?? const Uuid().v4(),
-        avatarColor = avatarColor ?? Colors.blue;
+        avatarColor = avatarColor ?? Colors.blue,
+        userId = userId ?? const Uuid().v4(); // Initialize userId with provided value or generate new
 
   ChatParticipant copyWith({
     String? id,
@@ -36,6 +39,7 @@ class ChatParticipant {
     bool? isTyping,
     bool? isOnline,
     bool? isHost,
+    String? userId,
   }) {
     return ChatParticipant(
       id: id ?? this.id,
@@ -47,6 +51,7 @@ class ChatParticipant {
       isTyping: isTyping ?? this.isTyping,
       isOnline: isOnline ?? this.isOnline,
       isHost: isHost ?? this.isHost,
+      userId: userId ?? this.userId,
     );
   }
 }
