@@ -1,0 +1,254 @@
+Below is the complete and detailed implementation architecture and design for Kounsel Me, tailored to your requirements and based on our previous conversations. This document covers every aspect of the app, from frontend to backend, AI integration, payments, and scalability, ensuring it’s comprehensive and easy to follow, even with a lower technical background. It’s structured to be actionable, with clear explanations and diagrams where helpful, so you can use it directly as a reference when building the app, including with an AI IDE.
+Kounsel Me: Full Implementation Architecture and Design
+Kounsel Me is a privacy-focused, AI-powered application designed for conflict resolution, emotional reflection, and personal growth. It includes real-time chat (text and voice), journaling, mood tracking, session summarization, and a freemium payment model. The architecture is built to scale easily to millions of users, with a local-first approach to minimize server load and costs.
+This document provides a step-by-step guide to building Kounsel Me, covering:
+Frontend (Flutter)
+Backend (Node.js with Fastify)
+Database (Neon Serverless PostgreSQL and SQLite)
+Real-Time Communication (uWebSockets.js)
+AI Integration (OpenAI and self-hosted T5)
+Payments and Licensing (Lemon Squeezy)
+Scalability and Security
+Table of Contents
+High-Level Architecture Overview (#high-level-architecture-overview)
+Frontend (Flutter) (#frontend-flutter)
+Backend (Node.js with Fastify) (#backend-nodejs-with-fastify)
+Database (Neon and SQLite) (#database-neon-and-sqlite)
+Real-Time Chat (uWebSockets.js) (#real-time-chat-uwebsocketsjs)
+AI Integration (OpenAI and T5) (#ai-integration-openai-and-t5)
+Payments and Licensing (Lemon Squeezy) (#payments-and-licensing-lemon-squeezy)
+Scalability and Performance (#scalability-and-performance)
+Security and Privacy (#security-and-privacy)
+Next Steps and Validation (#next-steps-and-validation)
+High-Level Architecture Overview
+Kounsel Me uses a local-first, cloud-synced architecture to ensure privacy and scalability:
+Frontend: A Flutter app running on iOS and Android, storing most data locally with SQLite.
+Backend: A Node.js server with Fastify, managing real-time chat, APIs, and payments.
+Database: Neon Serverless PostgreSQL for cloud metadata; SQLite on-device for full data.
+AI: OpenAI for chat and voice transcription; self-hosted T5 on AWS Lambda for summarization and mood analysis.
+Payments: Lemon Squeezy for subscriptions and license management.
+This design keeps most data on the user’s device, syncing only essential metadata and summaries to the cloud, reducing costs and enhancing privacy.
+Architecture Diagram:
++-----------------+         +-----------------+         +-----------------+
+|  Flutter App    | <----> |  Fastify Server | <----> |  Neon PostgreSQL |
+|  (iOS/Android)  |         |  (Node.js)      |         |  (Metadata)      |
++-----------------+         +-----------------+         +-----------------+
+         |                          |                          |
+         | SQLite (Local Data)      | Redis (Caching)           |
+         |                          | Lambda (T5 AI)            |
+         |                          | OpenAI (Chat/Whisper)     |
+         |                          | Lemon Squeezy (Payments)  |
+         +------------------------------------------------------+
+Frontend (Flutter)
+The frontend is built with Flutter, allowing you to create a single codebase for both iOS and Android with a smooth, native-like experience.
+Key Components
+Chat Screen:
+Purpose: Displays real-time text and voice messages between the user and the AI mediator.
+Features: Real-time messaging (via WebSocket), voice input option.
+Storage: Full chat history saved locally in SQLite.
+UI: A scrollable message list with timestamps; input bar for text/voice.
+Journaling Screen:
+Purpose: Allows users to write or record private reflections.
+Features: Text input, optional voice recording (transcribed to text).
+Storage: Entries stored in SQLite on the device.
+UI: Simple text editor with save button; voice record toggle.
+Mood Board Screen:
+Purpose: Visualizes emotional trends over time.
+Features: Graphs/charts using the fl_chart package, pulling data from SQLite mood logs.
+Storage: Mood data logged locally in SQLite.
+UI: Line chart showing mood trends (e.g., happy, sad) over days/weeks.
+Payment Screen:
+Purpose: Manages subscription for premium features.
+Features: Button to subscribe via Lemon Squeezy; displays current plan status.
+UI: Clean layout with “Upgrade to Premium” call-to-action.
+Dependencies
+sqflite: For local SQLite database to store chats, journals, and mood data.
+http: For making API calls to the backend (e.g., license checks).
+flutter_lemon_squeezy (or http): For integrating Lemon Squeezy payments (use http if no SDK exists).
+fl_chart: For creating mood visualizations.
+riverpod: For state management (e.g., updating the chat UI when new messages arrive).
+web_socket_channel: For WebSocket connections to the backend.
+Implementation Notes
+Chat Screen: Connect to the backend’s WebSocket endpoint (/chat) using web_socket_channel. Display incoming messages in real time and save them to SQLite.
+Journaling: Use a TextEditingController for text input; save entries to SQLite with a timestamp.
+Mood Board: Query SQLite for mood logs, pass data to FlLineChart for rendering.
+Payments: Call Lemon Squeezy’s checkout URL when the user taps “Subscribe”; verify license keys via backend API.
+Scalability Notes
+Lazy Loading: Load chat messages and journal entries in chunks (e.g., 20 at a time) to save memory.
+Offline Mode: Ensure all features work without internet; sync summaries to the cloud when online.
+CDN: Serve static assets (e.g., icons, images) via a CDN like Cloudflare for faster load times.
+Backend (Node.js with Fastify)
+The backend uses Node.js with Fastify, a lightweight and fast framework perfect for real-time apps like Kounsel Me.
+Key Components
+Real-Time Chat:
+Handled by uWebSockets.js, integrated into Fastify for WebSocket support.
+Manages live messaging between the Flutter app and AI.
+API Endpoints:
+GET /chat: WebSocket endpoint for real-time messaging.
+POST /summary: Triggers summarization of chat sessions (calls T5 on Lambda).
+POST /license: Verifies Lemon Squeezy license keys for premium access.
+Database Connections:
+Neon Serverless PostgreSQL: Stores user metadata, summaries, and subscription status.
+Redis: Caches active chat sessions and frequently accessed data.
+AI Integration:
+Makes API calls to OpenAI for chat responses and Whisper for voice transcription.
+Triggers T5 on AWS Lambda for summarization and mood analysis.
+Dependencies
+fastify: Core framework for routing and server setup.
+uwebsockets.js: High-performance WebSocket library for real-time chat.
+@neondatabase/serverless: Driver for Neon PostgreSQL connectivity.
+ioredis: Redis client for caching.
+axios: For making HTTP requests to OpenAI and Lemon Squeezy APIs.
+Sample Code (Basic Fastify Setup)
+javascript
+const fastify = require('fastify')({ logger: true });
+const uWS = require('uWebSockets.js');
+
+fastify.get('/chat', { websocket: true }, (connection, req) => {
+  connection.socket.on('message', (message) => {
+    // Handle incoming messages, send to AI, broadcast response
+    connection.socket.send('AI response here');
+  });
+});
+
+fastify.listen({ port: 3000 }, (err) => {
+  if (err) throw err;
+  console.log('Server running on port 3000');
+});
+Scalability Notes
+Stateless Design: Keep Fastify servers stateless; store session data in Redis.
+Load Balancing: Use AWS Application Load Balancer (ALB) to distribute traffic across multiple instances.
+Containerization: Package the app in Docker and deploy with AWS ECS Fargate for easy scaling.
+Database (Neon and SQLite)
+Kounsel Me uses a hybrid database approach for privacy and scalability:
+SQLite (Local): Stores full chat histories, journals, and mood data on the user’s device.
+Neon Serverless PostgreSQL (Cloud): Stores lightweight metadata, summaries, and subscription info.
+Key Tables (Neon PostgreSQL)
+users:
+id (UUID): Unique user identifier.
+license_key (string): Lemon Squeezy license key.
+is_premium (boolean): Subscription status.
+created_at (timestamp): User signup date.
+chat_summaries:
+user_id (UUID): Foreign key to users.
+session_id (UUID): Unique chat session ID.
+summary (text): AI-generated summary.
+timestamp (timestamp): When summary was created.
+mood_metadata:
+user_id (UUID): Foreign key to users.
+mood_trend (json): Aggregated mood data (e.g., { "happy": 5, "sad": 2 }).
+last_updated (timestamp): Last update time.
+SQLite Schema (Local)
+chats: id, session_id, message, is_user, timestamp.
+journals: id, content, timestamp.
+moods: id, mood_type, intensity, timestamp.
+Scalability Notes
+Neon: Automatically scales compute with demand; add read replicas for high read traffic.
+SQLite: Scales with the number of users (device-side); syncs only summaries/metadata to Neon.
+Indexing: Add indexes on users.id and chat_summaries.user_id for fast queries.
+Real-Time Chat (uWebSockets.js)
+Real-time communication is powered by uWebSockets.js, a fast and lightweight WebSocket library.
+Implementation
+WebSocket Endpoint (/chat):
+Flutter app connects using web_socket_channel.
+Messages are sent to the AI (OpenAI) and responses are broadcast back to the client.
+Multi-User Sync:
+Use Redis Pub/Sub to sync messages across multiple server instances if scaling horizontally.
+Context Management:
+Store the last 5-10 messages in Redis (sliding window) for AI context.
+Summarize chats every 10 messages with T5 (via Lambda) and save to Neon.
+Sample Code (uWebSockets.js Integration)
+javascript
+const uWS = require('uWebSockets.js');
+
+const app = uWS.App().ws('/chat', {
+  open: (ws) => console.log('Client connected'),
+  message: (ws, message, isBinary) => {
+    const text = Buffer.from(message).toString();
+    // Send to OpenAI, get response
+    ws.send('AI: ' + text); // Placeholder response
+  },
+  close: (ws) => console.log('Client disconnected'),
+}).listen(3000, (token) => {
+  if (token) console.log('WebSocket server on port 3000');
+});
+Scalability Notes
+Horizontal Scaling: Add more Fastify instances; Redis syncs WebSocket state.
+Connection Capacity: uWebSockets.js can handle 100,000+ connections per server.
+AI Integration (OpenAI and T5)
+AI powers the core features of Kounsel Me:
+OpenAI:
+ChatGPT: Provides real-time chat responses for mediation and support.
+Whisper: Transcribes voice inputs for chat and journaling.
+T5 (Hugging Face):
+Self-hosted on AWS Lambda for summarization and mood analysis.
+Runs periodically (e.g., every 5 minutes or after 10 messages).
+Implementation
+Real-Time Chat:
+Send user messages to OpenAI’s API via Fastify.
+Cache common responses in Redis to reduce API calls and costs.
+Voice Transcription:
+Upload audio files to Lambda, process with Whisper, return transcribed text.
+Summarization:
+Trigger T5 on Lambda to summarize chat sessions; store results in Neon.
+Mood Analysis:
+Analyze journal entries with T5 to detect emotions (e.g., happy, sad); save trends locally and sync metadata to Neon.
+Sample Code (OpenAI Call)
+javascript
+const axios = require('axios');
+
+async function getChatResponse(message) {
+  const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+    model: 'gpt-3.5-turbo',
+    messages: [{ role: 'user', content: message }],
+  }, { headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` } });
+  return response.data.choices[0].message.content;
+}
+Scalability Notes
+Serverless: Lambda scales automatically with usage.
+Cost Control: Use T5 for non-real-time tasks to minimize OpenAI costs.
+Batching: Process summaries in batches (e.g., multiple sessions at once) to optimize Lambda usage.
+Payments and Licensing (Lemon Squeezy)
+Lemon Squeezy manages payments and licenses for Kounsel Me’s freemium model:
+Free Tier: 50 chat messages/month, basic journaling, no voice.
+Paid Tier ($5/month): Unlimited chat, voice, and advanced mood insights.
+Implementation
+Frontend:
+Add a “Subscribe” button in Flutter that opens Lemon Squeezy’s checkout URL.
+Check license status via backend API (/license) to unlock features.
+Backend:
+Use Lemon Squeezy’s API to generate license keys after payment.
+Verify keys with a /license endpoint before granting premium access.
+Database:
+Store license_key and is_premium in Neon’s users table.
+Sample Code (License Verification)
+javascript
+fastify.post('/license', async (req, reply) => {
+  const { license_key } = req.body;
+  const response = await axios.post('https://api.lemonsqueezy.com/v1/licenses/validate', { license_key });
+  if (response.data.valid) {
+    // Update user in Neon as premium
+    return { status: 'valid' };
+  }
+  return { status: 'invalid' };
+});
+Scalability Notes
+Lemon Squeezy: Built on Stripe’s infrastructure, scales to millions of transactions.
+License Checks: Fastify and Neon handle verification with low latency.
+Scalability and Performance
+To ensure Kounsel Me scales to millions of users:
+Local-First: Store most data in SQLite on-device, reducing server load.
+Stateless Backend: Fastify instances scale horizontally with ECS Fargate.
+Database: Neon auto-scales compute; Redis caches hot data for quick access.
+Serverless AI: T5 on Lambda scales with demand, no fixed servers needed.
+CDN: Use Cloudflare to serve static assets globally with low latency.
+Security and Privacy
+Encryption: Use AES-256 to encrypt SQLite data and backups on-device.
+API Security: Enforce HTTPS for all communications; use JWT for user authentication.
+Data Minimization: Sync only summaries and metadata to Neon, keeping full data local.
+Compliance: Lemon Squeezy handles global tax and compliance (e.g., GDPR, CCPA).
+Next Steps and Validation
+Send Prompt to AI IDE: Use this document as a detailed prompt for your AI IDE to generate code.
+Share Output: Send me the generated code/files for review and validation.
+Iterate: We’ll refine the implementation, focusing on chat, payments, and scalability.
+This architecture ensures Kounsel Me is scalable, secure, and user-friendly. Let me know if you need more details on any section or help with the next steps!

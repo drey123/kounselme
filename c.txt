@@ -1,0 +1,194 @@
+## Technical Setup (Part 2 - Backend, Database, and Sync):
+
+3. **Node.js Backend (Foundation)**:
+   - Set up a Fastify server:
+     ```bash
+     mkdir kounselme-backend
+     cd kounselme-backend
+     npm init -y
+     npm install fastify @fastify/websocket @fastify/cors @neondatabase/serverless dotenv axios
+     ```
+   
+   - Create a `.env` file for backend configuration:
+     ```
+     PORT=3000
+     NODE_ENV=development
+     NEON_DB_URL=postgres://username:password@hostname/database
+     OPENAI_API_KEY=your-api-key
+     SUPABASE_URL=https://your-project.supabase.co
+     SUPABASE_SERVICE_KEY=your-service-key
+     ```
+   
+   - Create proper directory structure:
+     ```
+     kounselme-backend/
+     ├── src/
+     │   ├── config/         # Configuration loading
+     │   ├── routes/         # API route handlers
+     │   ├── db/             # Database connection and queries
+     │   ├── services/       # Business logic
+     │   ├── utils/          # Helper functions
+     │   └── index.js        # App setup
+     ├── .env                # Environment variables
+     └── server.js           # Entry point
+     ```
+   
+   - Set up config loading:
+     ```javascript
+     // src/config/index.js
+     require('dotenv').config();
+     
+     module.exports = {
+       port: process.env.PORT || 3000,
+       nodeEnv: process.env.NODE_ENV || 'development',
+       neonDbUrl: process.env.NEON_DB_URL,
+       openaiApiKey: process.env.OPENAI_API_KEY,
+       supabaseUrl: process.env.SUPABASE_URL,
+       supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY
+     };
+     ```
+
+4. **Database Setup**:
+   - Neon PostgreSQL schema:
+     ```sql
+     CREATE TABLE IF NOT EXISTS users (
+       id UUID PRIMARY KEY,
+       email TEXT UNIQUE NOT NULL,
+       last_login TIMESTAMP WITH TIME ZONE,
+       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+     );
+     
+     CREATE TABLE IF NOT EXISTS chat_messages_sync (
+       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+       user_id UUID REFERENCES users(id),
+       local_id TEXT NOT NULL,
+       is_user BOOLEAN NOT NULL,
+       message TEXT NOT NULL,
+       timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+       UNIQUE(user_id, local_id)
+     );
+     ```
+   
+   - Set up database connection:
+     ```javascript
+     // src/db/index.js
+     const { neon } = require('@neondatabase/serverless');
+     const config = require('../config');
+     
+     const sql = neon(config.neonDbUrl);
+     
+     module.exports = { sql };
+     ```
+   
+   - SQLite schema (implement in Flutter):
+     ```dart
+     // In data/local/database_helper.dart
+     
+     Future<void> _createTables(Database db) async {
+       await db.execute('''
+         CREATE TABLE chat_messages (
+           id TEXT PRIMARY KEY,
+           session_id TEXT NOT NULL,
+           is_user INTEGER NOT NULL,
+           message TEXT NOT NULL,
+           timestamp INTEGER NOT NULL,
+           is_synced INTEGER DEFAULT 0
+         )
+       ''');
+     }
+     ```
+
+5. **Sync Architecture**:
+   - Implement WebSocket for real-time messaging:
+     ```javascript
+     // src/routes/chat.js
+     
+     module.exports = async function(fastify) {
+       fastify.register(require('@fastify/websocket'));
+       
+       fastify.get('/chat', { websocket: true }, (connection, req) => {
+         connection.socket.on('message', async (message) => {
+           const data = JSON.parse(message.toString());
+           
+           // Get AI response
+           const aiResponse = await getAIResponse(data.message);
+           
+           // Store in database
+           await storeMessage(data.userId, data.messageId, data.message, true);
+           
+           // Send back response
+           connection.socket.send(JSON.stringify({
+             message: aiResponse,
+             timestamp: new Date().toISOString()
+           }));
+         });
+       });
+       
+       async function getAIResponse(message) {
+         // Implementation for calling OpenAI
+       }
+       
+       async function storeMessage(userId, messageId, message, isUser) {
+         // Implementation for storing in Neon
+       }
+     };
+     ```
+
+6. **AI Integration**:
+   - Create a service for OpenAI:
+     ```javascript
+     // src/services/ai.js
+     const axios = require('axios');
+     const config = require('../config');
+     
+     const openaiClient = axios.create({
+       baseURL: 'https://api.openai.com/v1',
+       headers: {
+         'Authorization': `Bearer ${config.openaiApiKey}`,
+         'Content-Type': 'application/json'
+       }
+     });
+     
+     async function getChatResponse(message, previousMessages = []) {
+       try {
+         const response = await openaiClient.post('/chat/completions', {
+           model: 'gpt-3.5-turbo',
+           messages: [
+             {
+               role: 'system',
+               content: 'You are KounselMe, an empathetic AI wellness guide...'
+             },
+             ...previousMessages,
+             { role: 'user', content: message }
+           ],
+           temperature: 0.7
+         });
+         
+         return response.data.choices[0].message.content;
+       } catch (error) {
+         console.error('OpenAI API error:', error);
+         return 'I apologize, but I seem to be having trouble right now. Could we try again?';
+       }
+     }
+     
+     module.exports = { getChatResponse };
+     ```
+
+7. **Development Process and Next Steps**:
+   - Start with frontend auth screens and basic UI
+   - Set up the backend with WebSocket connectivity
+   - Implement local SQLite storage
+   - Add sync capability for messages
+   - Integrate with OpenAI for responses
+   - Test thoroughly offline and online
+   - Prepare for Phase 2 (journaling and mood tracking)
+
+IMPORTANT: Continue following these best practices:
+1. Validate all user input before processing
+2. Implement proper logging for server activities
+3. Set up proper error handling throughout the backend
+4. Use prepared statements for all database queries
+5. Implement proper authentication checks for all endpoints
+6. Document all API endpoints clearly
+7. Use transactions for database operations where appropriate
+8. Implement request rate limiting for API endpoints

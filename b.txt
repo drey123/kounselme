@@ -1,0 +1,118 @@
+I'm building KounselMe, an AI-powered mental wellness app, and need clear step-by-step instructions as I have limited technical skills. This is Phase 1 implementation, focusing on core features with the right foundation for future expansion.
+
+## Phase 1 Focus:
+1. User authentication with Supabase
+2. Basic chat interface with AI responses
+3. Local-first storage architecture
+4. Cloud sync of essential data
+
+## Technical Setup (Part 1 - Frontend and Auth):
+
+1. **Flutter Frontend (Core Setup)**:
+   - Create a new Flutter project:
+     ```bash
+     flutter create --org com.kounselme kounselme
+     cd kounselme
+     ```
+   - Add these dependencies to `pubspec.yaml`:
+     - `sqflite`: For local storage of chat messages
+     - `http`: For backend API connections
+     - `supabase_flutter`: For authentication
+     - `riverpod`: For state management
+     - `freezed`: For immutable state models
+     - `flutter_dotenv`: For environment variables
+   
+   - Create a proper project structure following best practices:
+     ```
+     lib/
+     ├── config/
+     │   └── env.dart          # Load environment variables
+     ├── data/
+     │   ├── local/            # Local storage (SQLite)
+     │   └── remote/           # API clients
+     ├── domain/
+     │   └── models/           # Data models
+     ├── presentation/
+     │   ├── screens/          # UI screens
+     │   └── widgets/          # Reusable components
+     └── main.dart             # Entry point
+     ```
+
+   - Create a `.env` file in the project root:
+     ```
+     SUPABASE_URL=https://your-project.supabase.co
+     SUPABASE_ANON_KEY=your-anon-key
+     BACKEND_URL=http://localhost:3000
+     ```
+
+   - Build the UI screens:
+     - Auth screens: Login/signup with Supabase
+     - Chat screen: Messages bubbles with text input
+
+2. **Authentication with Supabase**:
+   - Load environment variables securely:
+     ```dart
+     // In config/env.dart
+     import 'package:flutter_dotenv/flutter_dotenv.dart';
+     
+     class Env {
+       static String supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+       static String supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
+       static String backendUrl = dotenv.env['BACKEND_URL'] ?? '';
+     }
+     ```
+   
+   - Initialize Supabase in main.dart:
+     ```dart
+     import 'package:flutter_dotenv/flutter_dotenv.dart';
+     import 'package:supabase_flutter/supabase_flutter.dart';
+     import 'package:kounselme/config/env.dart';
+     
+     Future<void> main() async {
+       await dotenv.load();
+       
+       await Supabase.initialize(
+         url: Env.supabaseUrl,
+         anonKey: Env.supabaseAnonKey,
+       );
+       
+       runApp(MyApp());
+     }
+     ```
+   
+   - Create a reusable auth service:
+     ```dart
+     // In data/remote/auth_service.dart
+     import 'package:supabase_flutter/supabase_flutter.dart';
+     
+     class AuthService {
+       final supabase = Supabase.instance.client;
+       
+       Future<AuthResponse> signUp(String email, String password) {
+         return supabase.auth.signUp(email: email, password: password);
+       }
+       
+       Future<AuthResponse> signIn(String email, String password) {
+         return supabase.auth.signInWithPassword(email: email, password: password);
+       }
+       
+       Future<void> signOut() {
+         return supabase.auth.signOut();
+       }
+       
+       Stream<AuthState> get authStateChanges => 
+         supabase.auth.onAuthStateChange;
+         
+       bool get isAuthenticated => supabase.auth.currentUser != null;
+     }
+     ```
+
+IMPORTANT: Follow these best practices throughout implementation:
+1. NEVER hard-code API keys, URLs, or credentials
+2. Use environment variables for all configuration values
+3. Implement proper error handling for all async operations
+4. Create reusable components and services
+5. Comment your code clearly for future reference
+6. Keep UI and business logic separate
+7. Use proper state management with Riverpod
+8. Follow Flutter's performance best practices
