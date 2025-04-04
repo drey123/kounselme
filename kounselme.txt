@@ -1,0 +1,764 @@
+# KounselMe: Comprehensive Technical Specification Document
+
+## 1. Executive Summary
+
+KounselMe is an AI-powered mental wellness application designed to provide personalized guidance through chat-based counseling, mood tracking, journaling, and other wellness features. The app follows a local-first architecture for privacy and offline functionality, with selective cloud synchronization.
+
+This document provides detailed technical specifications for implementing KounselMe, beginning with Flutter frontend development followed by backend integration.
+
+## 2. System Architecture Overview
+
+### 2.1 High-Level Architecture
+
+KounselMe employs a hybrid architecture:
+
+- **Frontend**: Flutter application (iOS/Android)
+- **Local Storage**: SQLite database
+- **Cloud Database**: Neon PostgreSQL
+- **Authentication**: Supabase Auth
+- **Real-time Communication**: WebSockets via Node.js/Fastify
+- **AI Services**: OpenAI (GPT-4o, Whisper, TTS), Together.ai (DeepSeek)
+- **Payment Processing**: Lemon Squeezy
+
+### 2.2 Data Flow Architecture
+
+1. **Local-First Approach**:
+   - Primary data storage in SQLite
+   - Essential metadata synced to cloud
+   - Background synchronization when online
+
+2. **Context Management**:
+   - Chat history and mood data stored locally
+   - Recent interactions maintained in memory (sliding window)
+   - Older conversations summarized via DeepSeek
+   - Journal data kept private and not used for AI context
+
+3. **AI Integration**:
+   - GPT-4o for primary conversational AI
+   - Whisper for speech-to-text
+   - OpenAI TTS HD for voice responses
+   - DeepSeek for summarization and insights
+
+## 3. Flutter Frontend Implementation
+
+### 3.1 Project Structure
+
+```
+lib/
+├── config/                 # Configuration, environment, theme
+├── core/                   # Core utilities, constants, enums
+├── data/                   # Data layer
+│   ├── local/              # SQLite, secure storage
+│   ├── models/             # Data models
+│   ├── remote/             # API clients
+│   └── repositories/       # Repository pattern implementations
+├── domain/                 # Business logic
+│   ├── providers/          # Riverpod providers
+│   └── services/           # Business logic services
+├── presentation/           # UI layer
+│   ├── screens/            # App screens
+│   └── widgets/            # Reusable widgets
+└── main.dart               # Entry point
+```
+
+### 3.2 Dependencies
+
+```yaml
+dependencies:
+  # State Management
+  flutter_riverpod: ^2.3.6
+  
+  # Local Storage
+  sqflite: ^2.3.0
+  shared_preferences: ^2.2.0
+  flutter_secure_storage: ^10.0.0-beta.4
+  
+  # Networking
+  http: ^1.1.0
+  web_socket_channel: ^3.0.2
+  
+  # Authentication
+  supabase_flutter: ^2.8.4
+  
+  # UI Components
+  flutter_svg: ^2.0.7
+  iconsax: ^0.0.8
+  fl_chart: ^0.70.2
+  
+  # Utilities
+  intl: ^0.20.2
+  uuid: ^4.5.1
+  add_2_calendar: ^2.2.4
+  path_provider: ^2.1.0
+  
+  # Other
+  flutter_dotenv: ^5.1.0
+  url_launcher: ^6.1.14
+```
+
+### 3.3 Theme Implementation
+
+```dart
+// Theme implementation based on Mindify UI kit
+
+// Color palette
+final electricViolet = Color(0xFF5700E6);
+final heliotrope = Color(0xFFB27BFB);
+final robinsGreen = Color(0xFF07D4BC);
+final yellowSea = Color(0xFFFFB00C);
+final pink = Color(0xFFFFC5CB);
+final snowWhite = Color(0xFFFFFFFF);
+final codGray = Color(0xFF0D0D0D);
+
+// Typography using Manrope and Inter fonts
+// Text styles hierarchy for headings, body, etc.
+
+// Component theming for buttons, cards, inputs
+// Support for light/dark mode
+```
+
+### 3.4 Screen Implementations
+
+#### 3.4.1 Authentication Screens
+- Onboarding screens (4-5 screens)
+- Sign up and login screens
+- Email verification 
+- Password reset flow
+
+#### 3.4.2 Home Screen
+- Dashboard with quick access to main features
+- Recent sessions
+- Mood summary
+- Quick action buttons
+- Navigation to all main sections
+
+#### 3.4.3 Chat Screen
+- Real-time messaging interface
+- Message bubbles for user and AI
+- Typing indicators
+- Voice input option
+- Invite user button (for multi-user sessions)
+- Session timer display
+- Session scheduling option
+
+#### 3.4.4 Multi-User Chat
+- Participant list with avatars
+- Invitation flow UI
+- Visual indicators for who's speaking
+- Permission controls for session host
+- Join/leave indicators
+
+#### 3.4.5 Journal Screen
+- Text editor with formatting
+- Tag system
+- Date selection
+- Voice-to-text functionality
+- Journal entry list/calendar view
+- Search and filter options
+
+#### 3.4.6 Mood Tracking
+- Daily mood input interface
+- Mood selection options (emoji-based)
+- Context tags for mood entries
+- Notes field
+- Visualization of mood trends
+- Weekly and monthly views
+
+#### 3.4.7 Explore/Discover Section
+- Content categories (meditation, breathing, articles)
+- Card-based content display
+- Media player for audio content
+- Article reader
+- Favorites and history
+
+#### 3.4.8 Sleep Aids
+- Sound library
+- Sleep stories interface
+- Timer functionality
+- Favorites and recently played
+- Background playback controls
+
+#### 3.4.9 Subscription/Payment
+- Plan comparison
+- Lemon Squeezy integration
+- Payment method selection
+- Receipt and subscription management
+- Upgrade prompts (non-intrusive)
+
+#### 3.4.10 Settings
+- Account management
+- Notification preferences
+- Privacy controls
+- Appearance settings
+- Help and support
+- About section
+
+### 3.5 State Management
+
+Using Riverpod for state management:
+
+#### 3.5.1 State Providers
+- Authentication state provider
+- User profile provider
+- Chat session provider
+- Journal entry provider
+- Mood tracking provider
+- Subscription status provider
+- Settings provider
+
+#### 3.5.2 State Classes
+- Immutable state models using Freezed
+- Clear state transitions
+- Loading, success, error states for async operations
+
+### 3.6 Navigation
+
+- GoRouter for declarative routing
+- Deep linking support
+- Path parameters for specific screens
+- Navigation guards for authenticated routes
+
+### 3.7 Reusable Widgets
+
+#### 3.7.1 Styled Components
+- KButton (primary, secondary, text, outline variants)
+- KTextField (with validation)
+- KCard (for consistent card styling)
+- KBottomSheet (for modal sheets)
+
+#### 3.7.2 Chat Components
+- MessageBubble
+- TypingIndicator
+- VoiceInputButton
+- ParticipantAvatar
+
+#### 3.7.3 Data Visualization
+- MoodChart
+- CalendarView
+- ProgressIndicator
+- InsightCard
+
+#### 3.7.4 Modal Components
+- ConfirmationDialog
+- LoadingOverlay
+- ErrorAlert
+- SuccessToast
+
+## 4. Local Storage Implementation
+
+### 4.1 SQLite Database
+
+#### 4.1.1 Database Helper
+```dart
+// Database initialization and versioning
+// Migration handling
+// CRUD operations wrapper
+```
+
+#### 4.1.2 Schema
+```sql
+-- Users table
+CREATE TABLE users (
+  id TEXT PRIMARY KEY,
+  email TEXT,
+  created_at TEXT,
+  last_login TEXT,
+  is_premium INTEGER
+);
+
+-- Chat messages table
+CREATE TABLE chat_messages (
+  id TEXT PRIMARY KEY,
+  session_id TEXT,
+  user_id TEXT,
+  content TEXT,
+  is_user INTEGER,
+  timestamp TEXT,
+  is_synced INTEGER
+);
+
+-- Chat sessions table
+CREATE TABLE chat_sessions (
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  is_multi_user INTEGER,
+  participants TEXT,
+  duration INTEGER,
+  is_synced INTEGER
+);
+
+-- Journal entries table
+CREATE TABLE journal_entries (
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  content TEXT,
+  tags TEXT,
+  timestamp TEXT,
+  is_synced INTEGER
+);
+
+-- Mood entries table
+CREATE TABLE mood_entries (
+  id TEXT PRIMARY KEY,
+  mood_type TEXT,
+  intensity INTEGER,
+  tags TEXT,
+  notes TEXT,
+  timestamp TEXT,
+  is_synced INTEGER
+);
+
+-- Invitations table
+CREATE TABLE invitations (
+  id TEXT PRIMARY KEY,
+  session_id TEXT,
+  invitee_email TEXT,
+  status TEXT,
+  created_at TEXT,
+  expires_at TEXT,
+  is_synced INTEGER
+);
+```
+
+### 4.2 Secure Storage
+
+- Flutter Secure Storage for sensitive data
+- Storage of tokens, API keys
+- Encryption of personal data
+
+### 4.3 Preferences
+
+- SharedPreferences for user settings
+- App configuration
+- Session parameters
+
+## 5. API Integration
+
+### 5.1 Backend API Client
+
+#### 5.1.1 HTTP Client
+```dart
+// Base HTTP client with interceptors
+// Authentication header injection
+// Error handling and retries
+// Logging in debug mode
+```
+
+#### 5.1.2 Endpoints
+```dart
+// User management endpoints
+// Chat session endpoints
+// Journal sync endpoints
+// Mood tracking sync endpoints
+// Subscription management endpoints
+```
+
+### 5.2 WebSocket Integration
+
+```dart
+// WebSocket connection handling
+// Reconnection logic
+// Message serialization/deserialization
+// Real-time updates handling
+```
+
+### 5.3 AI Service Integration
+
+#### 5.3.1 OpenAI Integration
+```dart
+// GPT-4o chat completion
+// Streaming response handling
+// Context preparation
+// Whisper API for voice transcription
+// TTS HD for voice responses
+```
+
+#### 5.3.2 Together.ai Integration
+```dart
+// DeepSeek model access
+// Summary generation
+// Insight extraction
+// Response parsing
+```
+
+### 5.4 Lemon Squeezy Integration
+
+```dart
+// Checkout flow
+// Receipt verification
+// Subscription status checking
+// Purchase restoration
+```
+
+## 6. Context Management Implementation
+
+### 6.1 Local Context Processing
+
+#### 6.1.1 Sliding Window
+- Maintain 10-15 most recent messages in memory
+- JSON serialization for persistence
+- Priority queue implementation
+
+#### 6.1.2 Selective Data Injection
+- Retrieve mood data based on recency and relevance
+- Query builder for flexible data retrieval
+- Contextual enrichment based on conversation topic
+
+#### 6.1.3 Context Formatting
+```dart
+// Format context for AI consumption
+// Structured JSON with sections for:
+// - System instructions
+// - User profile
+// - Recent messages
+// - Mood data
+// - Conversation summaries
+```
+
+### 6.2 DeepSeek Summarization
+
+```dart
+// Trigger summarization based on:
+// - Message count threshold
+// - Time elapsed
+// - Topic changes
+// Cache summaries for reuse
+// Update summaries incrementally
+```
+
+## 7. Multi-User Session Implementation
+
+### 7.1 Invitation System
+
+#### 7.1.1 Invitation Generation
+```dart
+// Generate unique invite links
+// Set expiration times
+// Store invitation metadata
+```
+
+#### 7.1.2 Invitation Acceptance
+```dart
+// Validate invitation tokens
+// Add user to session
+// Handle permissions
+```
+
+### 7.2 Session Management
+
+```dart
+// Track participant status
+// Handle join/leave events
+// Synchronize message delivery
+// Manage session timeout
+```
+
+### 7.3 Calendar Integration
+
+```dart
+// ICS file generation for calendar events
+// Schedule reminders
+// Cross-platform calendar integration
+```
+
+## 8. Authentication Flow
+
+### 8.1 Supabase Integration
+
+```dart
+// Initialize Supabase client
+// Handle authentication state changes
+// Manage tokens and refreshing
+```
+
+### 8.2 User Onboarding
+
+```dart
+// Progressive profile completion
+// Initial preference setting
+// First-time user experience
+```
+
+### 8.3 Session Persistence
+
+```dart
+// Secure token storage
+// Auto-login implementation
+// Session timeout handling
+```
+
+## 9. Offline Functionality
+
+### 9.1 Connection Management
+
+```dart
+// Detect network state
+// Graceful degradation of features
+// Notification of offline mode
+```
+
+### 9.2 Queued Operations
+
+```dart
+// Store operations when offline
+// Execute queue when online
+// Conflict resolution
+```
+
+### 9.3 Local-Only Features
+
+```dart
+// Journal functions without network
+// Mood tracking offline capability
+// Cached content access
+```
+
+## 10. Analytics and Error Handling
+
+### 10.1 Error Handling
+
+```dart
+// Global error handling
+// Graceful degradation
+// User-friendly error messages
+// Retry mechanisms
+```
+
+### 10.2 Logging
+
+```dart
+// Development logging
+// Error reporting (opt-in)
+// Performance metrics
+```
+
+## 11. Backend Implementation (Post-Frontend)
+
+### 11.1 Node.js/Fastify Server
+
+```javascript
+// Server setup
+// Route definitions
+// Middleware configuration
+// WebSocket server integration
+```
+
+### 11.2 Database Integration
+
+```javascript
+// Neon PostgreSQL connection
+// Database schema
+// Query optimization
+// Data validation
+```
+
+### 11.3 Authentication Middleware
+
+```javascript
+// Token validation
+// Role-based access control
+// Rate limiting
+```
+
+### 11.4 WebSocket Server
+
+```javascript
+// Connection handling
+// Room management for multi-user sessions
+// Message broadcasting
+// Presence tracking
+```
+
+### 11.5 AI Service Integration
+
+```javascript
+// OpenAI API integration
+// Together.ai integration
+// Response formatting
+// Caching strategies
+```
+
+### 11.6 Payment Processing
+
+```javascript
+// Lemon Squeezy webhook handling
+// Subscription status updates
+// Payment verification
+```
+
+## 12. Security Considerations
+
+### 12.1 Data Security
+
+- End-to-end encryption for sensitive data
+- Secure storage practices
+- Data minimization principles
+
+### 12.2 User Privacy
+
+- Clear privacy controls
+- Selective syncing options
+- Data retention policies
+
+### 12.3 API Security
+
+- Token-based authentication
+- HTTPS enforcement
+- API rate limiting
+- Input validation
+
+## 13. Performance Optimization
+
+### 13.1 Flutter Optimization
+
+- Memory management
+- Image optimization
+- Lazy loading of heavy components
+- Widget rebuilding optimization
+
+### 13.2 Network Optimization
+
+- Request batching
+- Response compression
+- Connection pooling
+- Caching strategies
+
+### 13.3 Database Optimization
+
+- Indexing strategy
+- Query optimization
+- Connection pooling
+- Database sharding considerations for future scale
+
+## 14. Testing Strategy
+
+### 14.1 Unit Testing
+
+- Business logic testing
+- Repository testing
+- Service testing
+
+### 14.2 Widget Testing
+
+- UI component testing
+- Screen flow testing
+- Interaction testing
+
+### 14.3 Integration Testing
+
+- API integration testing
+- End-to-end flow testing
+- Multi-device testing
+
+## 15. Deployment Pipeline
+
+### 15.1 CI/CD
+
+- GitHub Actions workflow
+- Automated testing
+- Build generation
+- Release management
+
+### 15.2 App Store Publishing
+
+- iOS App Store preparation
+- Google Play Store preparation
+- Metadata and screenshots
+- Review guidelines compliance
+
+## 16. Implementation Phases
+
+### 16.1 Phase 1: Core UI Implementation
+
+1. Set up project structure and dependencies
+2. Implement theme and reusable components
+3. Build authentication screens
+4. Develop home screen and navigation
+5. Create chat interface (single-user)
+6. Implement basic journal interface
+7. Build mood tracking screens
+8. Develop settings screens
+
+### 16.2 Phase 2: Local Storage and State Management
+
+1. Implement SQLite database schema
+2. Create database helper and repositories
+3. Set up Riverpod providers
+4. Implement local-first data access
+5. Add offline capability
+6. Build preference management
+
+### 16.3 Phase 3: Backend Integration
+
+1. Set up Supabase authentication
+2. Implement API clients
+3. Create WebSocket connection
+4. Build synchronization logic
+5. Integrate AI services
+6. Implement Lemon Squeezy payment flow
+
+### 16.4 Phase 4: Advanced Features
+
+1. Add multi-user chat capability
+2. Implement voice mode
+3. Build content discovery section
+4. Add sleep aids section
+5. Implement gamification features
+6. Create detailed analytics views
+
+## 17. Resource Allocation
+
+### 17.1 Frontend Development
+
+- Flutter UI implementation: 4-8 weeks
+- State management and local storage: 2-4 weeks
+- API integration: 2-3 weeks
+
+### 17.2 Backend Development
+
+- Server setup: 1-2 weeks
+- API implementation: 2-4 weeks
+- Database integration: 1-2 weeks
+- AI service integration: 2-3 weeks
+
+### 17.3 Testing and Refinement
+
+- Testing: 2-4 weeks
+- Bug fixing and optimization: 2-4 weeks
+- User acceptance testing: 1-2 weeks
+
+## 18. Ongoing Maintenance
+
+### 18.1 Updates and New Features
+
+- Regular feature updates
+- Performance optimizations
+- New content additions
+
+### 18.2 Monitoring and Support
+
+- User support system
+- Performance monitoring
+- Error tracking and resolution
+
+## 19. Risk Management
+
+### 19.1 Technical Risks
+
+- AI service reliability
+- Database scaling challenges
+- Real-time communication reliability
+
+### 19.2 Mitigation Strategies
+
+- Fallback mechanisms for AI services
+- Database sharding plan
+- WebSocket reconnection strategies
+
+## 20. Conclusion
+
+This comprehensive technical specification provides a detailed blueprint for implementing the KounselMe application, focusing first on Flutter frontend development followed by backend integration. The document outlines a methodical approach to ensure a seamless, privacy-focused user experience with robust features while maintaining scalability and performance.
+
+Following this specification will result in a production-ready application that meets all the requirements outlined in the project scope, with a clear path for future enhancements and scale.

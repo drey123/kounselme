@@ -1,0 +1,685 @@
+I sent some of this to chat gpt and it created this nice images we will turn it into dart to help us 
+
+
+Create a photorealistic mockup of the KounselMe chat interface that combines elements from leading AI chat platforms while maintaining our unique brand identity. This screen should feel familiar yet distinctive.
+
+## Brand Colors and Typography
+- Electric Violet (#5700E6): Primary brand color
+- Heliotrope (#B27BFB): Secondary/accent purple
+- Robin's Green (#07D4BC): Action buttons/interactive elements
+- Yellow Sea (#FFB00C): Highlighting/emphasis elements
+- Snow White (#FFFFFF): Background/text
+- Cod Gray (#0D0D0D): Text/icons
+- Typography: PP Neue Montreal for headings, Inter for body text
+
+## Core Chat Interface Elements
+- Header: Electric Violet (#5700E6) curved header with:
+  * White "Chat" title in PP Neue Montreal (22px)
+  * Back button (left) with subtle white icon
+  * "New conversation" plus icon (right)
+  * Small dropdown arrow next to title (for accessing different chats)
+
+- Chat Messages Layout:
+  * User messages: Right-aligned in Electric Violet (#5700E6) rounded bubbles (14px radius)
+  * AI responses: Left-aligned in light gray bubbles with subtle Heliotrope (#B27BFB) accent line 
+  * Multi-user support: Include circular avatars (24px) next to messages with initial or profile picture
+  * Message spacing: 12px between bubbles in same group, 20px between different speakers
+
+- Message Details:
+  * Subtle timestamps between message groups (centered, light gray, 10px)
+  * Read/delivered indicators for user messages (subtle checkmarks)
+  * Code blocks with syntax highlighting in AI responses (like GitHub's style)
+  * Support for rich media (images) in messaging bubbles
+
+- Input Area:
+  * Clean white bar (60px height) with subtle top shadow
+  * Placeholder text "Type your message..." in light gray
+  * Robin's Green (#07D4BC) send button with paper plane icon
+  * Microphone icon for voice input
+  * Attachment paperclip icon for adding files/images
+  * Expandable input area for longer messages
+
+- Interactive Elements:
+  * Typing indicator (three animated dots) when AI is responding
+  * Robin's Green progress bar (subtle) at top during AI processing
+  * Like/dislike feedback buttons below AI messages (like ChatGPT)
+  * Option to copy AI responses (subtle icon on hover)
+
+## Slide-Out Chat History Panel
+- Implement a slide-out history panel (like ChatGPT/Claude):
+  * Triggered by hamburger icon or swipe gesture from left edge
+  * Dark Electric Violet background with 80% opacity
+  * List of previous conversations with:
+    - Conversation title (first 20 chars of first message)
+    - Timestamp (relative time like "2d ago")
+    - Small preview of last message
+  * "New Chat" button at top in Robin's Green (#07D4BC)
+  * Search bar for finding past conversations
+  * Folder organization system like Claude's interface
+  * Option to star/favorite important conversations
+
+## Background and Ambiance
+- Subtle, barely visible pattern of abstract speech bubbles in background
+- Slight gradient shift from top to bottom (white to very light purple)
+- Elegant drop shadows for message bubbles (4px blur, 30% opacity)
+- Micro-interactions: Subtle bounce when new messages appear
+- Show scrollbar only when actively scrolling (iOS style)
+
+## Additional Smart Features
+- AI response suggestions (3 chips below input when appropriate)
+- Context indicator showing what KounselMe is responding to
+- Privacy indicator (small lock icon) reminding of data privacy
+- Mood detection icon showing detected emotion from last message
+- Character counter for message length (appears after 150 chars)
+
+Design this interface to feel professional yet warm, efficient yet compassionate - perfect for mental wellness conversations. Make the overall aesthetic clean and minimalist while maintaining visual interest through thoughtful use of brand colors and subtle design elements.
+
+
+
+
+Create a photorealistic mockup of the KounselMe journaling interface that captures the calming, reflective experience of premium journaling apps while featuring our distinctive brand elements.
+
+## Brand Colors and Typography
+- Electric Violet (#5700E6): Primary brand color
+- Heliotrope (#B27BFB): Secondary/accent purple
+- Robin's Green (#07D4BC): Action buttons/interactive elements
+- Yellow Sea (#FFB00C): Saving/completion actions
+- Pink (#FFC5CB): Voice/audio elements
+- Snow White (#FFFFFF): Background/text areas
+- Cod Gray (#0D0D0D): Text/icons
+- Typography: PP Neue Montreal for headings, Inter for body text
+
+## Core Journaling Interface Elements
+- Header: Soft Heliotrope (#B27BFB) gradient header with:
+  * White "Journal" title in PP Neue Montreal (22px)
+  * Back button (left) with subtle white icon
+  * Three-dot menu (right) for additional options
+  * Date display showing current entry date (16px Inter)
+
+- Journal Editor:
+  * Clean white writing area with subtle paper-like texture
+  * Generous padding (24px) around text for comfortable writing
+  * Soft cursor animation in Robin's Green (#07D4BC)
+  * Line height of 1.6 for optimal readability
+  * Placeholder text "What's on your mind today?" that fades on focus
+  * Auto-saving indicator (small pulsing dot) in corner during typing
+
+- Entry Features:
+  * Title field at top (optional, 18px bold)
+  * Rich text formatting bar (minimalist, appears on text selection)
+  * Ability to add images (shown as drag area when relevant)
+  * Tag system for emotions with colored bubbles (e.g., #calm, #reflective)
+  * Word/character counter at bottom (subtle, 12px light gray)
+
+- Tool Area:
+  * Yellow Sea (#FFB00C) save button with checkmark icon
+  * Pink (#FFC5CB) circular voice recording button with subtle pulse effect
+  * Image attachment button with camera icon
+  * Mood selection button showing emotion picker on tap
+  * Timer option for timed writing sessions (like Forest app)
+
+## Calendar View Integration
+- Mini calendar view (collapsible):
+  * Month view similar to Apple Journal
+  * Dates with entries highlighted in Heliotrope (#B27BFB)
+  * Current date circled in Electric Violet (#5700E6)
+  * Dot indicators showing entry types (text, voice, etc.)
+  * Swipe gestures to change months
+  * Week/day/month view options
+
+## Interactive Elements
+- Voice recording mode:
+  * Pink (#FFC5CB) waveform visualization when recording
+  * Timer showing recording duration
+  * Pause/resume controls
+  * Cancel and save options
+  * Transcription status indicator (when converting to text)
+
+- Emotion Tagging:
+  * Emotion suggestion chips based on entry content (like Daylio)
+  * Custom tag creation option
+  * Visual picker with common emotions in brand colors
+  * Recent/frequently used tags section
+
+## Visual Design Elements
+- Subtle animations when transitioning between areas
+- Paper-like texture that's barely visible (like Apple Notes)
+- Elegant drop shadows for UI components (4px blur, 30% opacity)
+- Soft keyboard appearance animation
+- Custom scroll behavior that feels natural and smooth
+- Handwriting-style font option (toggle between typed and handwritten look)
+
+## Special Features
+- AI-assisted journaling prompts (3 suggestions in chips at bottom)
+- Privacy lock option for sensitive entries (fingerprint/Face ID)
+- "Mindful moment" breathing exercise option before writing
+- Streak counter showing consecutive days journaled
+- Export options (PDF, text) accessible from three-dot menu
+- Optional background ambient sounds toggle (like rain, café)
+
+Design the journaling interface to evoke calm reflection while maintaining professional polish. The experience should feel private, personal, and conducive to honest self-expression. Balance aesthetic beauty with functional simplicity for an interface that disappears while writing but provides powerful tools when needed.
+
+
+
+Create a photorealistic mockup of the KounselMe mood tracking interface that visualizes emotional patterns with elegance and clarity. This screen should combine data visualization sophistication with an approachable, insightful feel.
+
+## Brand Colors and Typography
+- Electric Violet (#5700E6): Primary brand color
+- Heliotrope (#B27BFB): Secondary/accent purple
+- Robin's Green (#07D4BC): Primary chart color/interactive elements
+- Yellow Sea (#FFB00C): Highlighting/secondary data points
+- Pink (#FFC5CB): Tertiary data visualization
+- Snow White (#FFFFFF): Background/text areas
+- Cod Gray (#0D0D0D): Text/icons
+- Typography: PP Neue Montreal for headings, Inter for body text
+
+## Core Mood Visualization Elements
+- Header: Gradient from Robin's Green (#07D4BC) to Electric Violet (#5700E6) with:
+  * White "Mood Trends" title in PP Neue Montreal (22px)
+  * Back button (left) with subtle white icon
+  * Information/help icon (right)
+  * Time period selector (Week/Month/Year) with underline indicator
+
+- Primary Chart Area:
+  * Beautiful line chart tracking mood over time (like Apple Health)
+  * Robin's Green (#07D4BC) primary line with subtle gradient fill below
+  * Smooth curved lines with animation when changing time periods
+  * Dot indicators at data points that are subtly pulsing
+  * Y-axis showing mood levels (Great, Good, Neutral, Low, Very Low)
+  * X-axis showing time intervals (days/weeks/months) with elegant typography
+  * Grid lines that are barely visible (2px, 10% opacity)
+  * Slight shadow under the line for depth
+
+- Data Interaction:
+  * Tappable data points that expand to show journal entry from that day
+  * Haptic feedback when selecting data points
+  * Zoom gestures for exploring specific time periods
+  * Floating tooltip that follows finger when dragging across chart
+  * Animation when switching between different mood metrics
+
+## Mood Metrics and Insights
+- Metrics Panel:
+  * Key statistics (average mood, trends, patterns) in card format
+  * Small sparkline graphs for secondary emotions (anxiety, calm, energy)
+  * Percentage indicators showing changes from previous period
+  * Color-coding using full brand palette to differentiate metrics
+
+- AI Insights Section:
+  * "Insights" heading in PP Neue Montreal (18px)
+  * 2-3 AI-generated observations about mood patterns
+  * Interactive buttons to dive deeper into each insight
+  * Visual representation of mood correlations (like Spotify's musical taste bubbles)
+  * Option to save insights or add to journal
+
+## Data Entry and History
+- Add Mood Entry:
+  * Robin's Green (#07D4BC) floating action button with plus icon
+  * Expandable emotion picker with circular icons (like Daylio)
+  * Quick-add options for common states
+  * Option to add notes to mood entries
+  * Time/date selector for retroactive entries
+
+- History Access:
+  * Calendar view toggle to see mood by calendar instead of chart
+  * List view option showing recent mood entries with timestamps
+  * Filter system for focusing on specific emotions or time periods
+  * Search functionality for finding specific mood entries
+
+## Visual Design Elements
+- Background with subtle, abstract wave pattern (representing emotional flow)
+- Smooth animations for all transitions between data views
+- Micro-interactions when hovering/tapping elements
+- Custom iconography for different emotional states
+- Adaptive color schemes based on predominant mood (optional)
+- 3D touch/long press actions for additional data layers
+
+## Special Features
+- Correlation finder (shows links between activities and moods)
+- Export functionality for sharing with healthcare providers
+- Reminders system for consistent mood tracking
+- Milestone celebrations for tracking streaks
+- Weather/location optional tracking to find environmental correlations
+- Split-screen option to compare different time periods
+
+Design this interface to feel both scientifically credible and emotionally resonant. The mood board should provide genuine insights while remaining approachable and non-clinical. Balance data sophistication with visual warmth to create a tool that users find both helpful for understanding patterns and emotionally supportive.
+
+
+
+
+Create a photorealistic mockup of the KounselMe subscription/payment interface that conveys premium value while maintaining clarity and trust. This screen should elegantly showcase the benefits of upgrading while providing a seamless payment experience.
+
+## Brand Colors and Typography
+- Electric Violet (#5700E6): Primary brand color
+- Heliotrope (#B27BFB): Secondary/accent purple
+- Robin's Green (#07D4BC): Secondary features/checkmarks
+- Yellow Sea (#FFB00C): Primary CTA button/highlight
+- Snow White (#FFFFFF): Background/text areas
+- Cod Gray (#0D0D0D): Text/icons
+- Typography: PP Neue Montreal for headings, Inter for body text
+
+## Core Payment Interface Elements
+- Header: Clean Electric Violet (#5700E6) header with:
+  * White "Premium" title in PP Neue Montreal (22px)
+  * Back button (left) with subtle white icon
+  * Small KounselMe logo (right corner)
+  * Subtle crown or star icon next to "Premium" title
+
+- Plan Comparison Section:
+  * Two-column layout comparing Free vs Premium (like Spotify)
+  * Current plan indicated with subtle highlight
+  * Feature list with clear icons and descriptions
+  * Robin's Green (#07D4BC) checkmarks for included features
+  * Gray X marks or strikethroughs for unavailable features
+  * Feature categories clearly separated (Chat, Journal, Mood, Support)
+  * Premium-exclusive features with subtle glow or highlight
+
+- Pricing Display:
+  * Bold "$5/month" in large PP Neue Montreal (32px)
+  * "Billed monthly" subtext in smaller font
+  * Optional annual plan showing discount ("Save 20%")
+  * Free trial callout with Yellow Sea (#FFB00C) highlight
+  * Money-back guarantee with small shield icon
+  * Currency selector (subtle dropdown) if international
+
+- Call to Action:
+  * Large Yellow Sea (#FFB00C) "Upgrade Now" button with subtle hover effect
+  * Button width covering 80% of screen width
+  * 16px border radius matching other UI elements
+  * Subtle shadow for depth (4px blur, 30% opacity)
+  * Micro-animation on hover/tap
+
+## Payment Options
+- Payment Method Selection:
+  * Clean radio button or card selection interface
+  * Credit card option with card icons
+  * Apple Pay / Google Pay buttons with respective logos
+  * PayPal option if applicable
+  * "Add Payment Method" option with plus icon
+
+- Security Elements:
+  * Lock icon with "Secure Payment" text
+  * Credit card form with clean field separation
+  * Real-time validation with subtle color changes
+  * PCI compliance badge (subtle, bottom of screen)
+  * Privacy reminder about payment data
+
+## Benefit Visualization
+- Feature Showcase:
+  * Carousel or scrollable section showing premium features visually
+  * Before/after comparisons where applicable
+  * Small animated demonstrations of premium features
+  * Usage statistics ("Unlimited" vs "50/month" with visual meters)
+
+- Social Proof:
+  * 1-2 brief testimonial quotes from users
+  * Star rating (4.8/5) with subtle yellow stars
+  * Number of premium subscribers indicator ("Join 10,000+ premium members")
+  * Small "As featured in" section with recognizable logos
+
+## Visual Design Elements
+- Subtle confetti animation when viewing premium benefits
+- High-quality microscopic feature illustrations
+- Clean white cards with elegant shadows for different sections
+- Premium-feeling textures (subtle paper or fabric where appropriate)
+- Generous whitespace for readability
+- Progress indicator if multi-step checkout
+
+## Special Features
+- Promo code entry option (expandable)
+- Gift subscription option
+- Family plan alternative with pricing comparison
+- "What You'll Get" immediate benefits list
+- Reminder of data privacy policy with premium
+- FAQ accordion at bottom addressing common questions
+
+Design this payment interface to feel premium without being pushy. The screen should instill confidence through clean design, transparent pricing, and clear value proposition. Users should understand exactly what they're getting while feeling the interface itself demonstrates the premium quality of the full experience.
+
+
+
+Create a photorealistic mockup of the KounselMe home dashboard that serves as the central hub for the app's key features. This screen should embody our brand's clean, modern aesthetic while providing intuitive access to all core functionality.
+
+## Brand Colors and Typography
+- Electric Violet (#5700E6): Primary brand color for header
+- Heliotrope (#B27BFB): Secondary/accent purple
+- Robin's Green (#07D4BC): Action buttons/indicators
+- Yellow Sea (#FFB00C): Highlighting elements
+- Pink (#FFC5CB): Tertiary accents
+- Snow White (#FFFFFF): Background/cards
+- Cod Gray (#0D0D0D): Text/icons
+- Typography: PP Neue Montreal for headings, Inter for body text
+
+## Core Dashboard Structure
+- Header: Electric Violet (#5700E6) curved header with:
+  * White KounselMe logo (left) with the speech bubble K icon
+  * User avatar/profile button (right) - circular with initial or photo
+  * Subtle wave pattern in slightly lighter purple within header
+  * Perfect 16px radius curve transitioning to white content area
+
+- Status Bar:
+  * Robin's Green (#07D4BC) dot with "Online" status in Inter Regular
+  * Network status indicator (optional)
+  * Subtle animation when status changes
+  * 14px font size with proper spacing
+
+- Card Layout:
+  * 3 main feature cards arranged in asymmetric grid for visual interest
+  * Consistent 16px corner radius on all cards
+  * Subtle shadows (4px blur, 10% opacity) for layered effect
+  * 16px padding within cards
+  * 2px subtle border in 5% gray for definition
+
+## Feature Cards
+- Chat Card (Primary Focus):
+  * Larger size than other cards (spans full width)
+  * "Chat" heading in PP Neue Montreal Bold (18px)
+  * Preview of last AI message with truncation
+  * Subtle notification indicator if new messages
+  * Tap target covering entire card
+  * Short preview text in Inter Regular (14px)
+
+- Journal Card:
+  * "Journal" heading in PP Neue Montreal Bold (18px)
+  * Current month display with arrow for navigation
+  * Miniature calendar grid showing:
+    - Day abbreviations (S M T W T F S)
+    - Current month dates with proper layout
+    - Highlighted dates with entries (Electric Violet circle)
+    - Current date with outline
+  * Subtle indicator showing total entries this month
+
+- Mood Card:
+  * "Mood" heading in PP Neue Montreal Bold (18px)
+  * Clean, simplified line graph showing recent mood trends
+  * Robin's Green (#07D4BC) line with subtle gradient fill
+  * No axes but implied scale through positioning
+  * Last 7 days of data visualized
+  * Small indicator showing mood improvement/decline
+
+- Quick Actions Card:
+  * Replace unclear "Save" card with "Quick Actions" 
+  * Clean grid of 2-4 action buttons
+  * Icons for: New Chat, New Journal, Track Mood, Settings
+  * Subtle labels beneath each icon
+  * Robin's Green (#07D4BC) floating action button
+  * Plus icon in white within FAB
+  * Subtle shadow and press animation for FAB
+
+## Navigation Bar
+- Bottom Navigation:
+  * 5 clearly identifiable icons:
+    - Home icon (house) - Active in Electric Violet
+    - Chat icon (message bubble) - Inactive in gray
+    - Journal icon (notebook, not bookmark) - Inactive in gray
+    - Mood icon (chart/graph) - Inactive in gray
+    - Profile icon (person) - Inactive in gray
+  * Active state with Electric Violet color and subtle indicator
+  * Labels beneath icons (optional but recommended)
+  * Subtle haptic feedback on tap
+  * Slight raise shadow above navigation bar
+  * iOS home indicator accommodation
+
+## Visual Design Elements
+- Subtle background pattern or texture (barely visible)
+- Thoughtful empty states for cards with no data
+- Micro-interactions on card hover/press
+- Consistent spacing throughout (8px grid system)
+- Smooth transitions when navigating
+- Pull-to-refresh functionality with branded animation
+- Scroll physics that feel natural and responsive
+
+## Special Features
+- Contextual welcome message based on time of day
+- Streak indicator for consistent app usage
+- "Continue where you left off" smart suggestion
+- Subtle celebration animations for achievements
+- Personalized tip or insight of the day
+- Unobtrusive premium feature promotions if relevant
+
+Design the home dashboard to feel welcoming yet organized, providing clear access to all key features while maintaining visual harmony. The overall aesthetic should balance functionality with emotional warmth, creating a dashboard that users want to return to daily. Ensure all elements have clear purpose and contribute to the user's mental wellness journey.
+
+
+
+Create a photorealistic mockup of the KounselMe user profile screen that balances personal customization with privacy-focused design. This screen should give users control over their experience while maintaining our clean, professional aesthetic.
+
+## Brand Colors and Typography
+- Electric Violet (#5700E6): Primary brand color
+- Heliotrope (#B27BFB): Secondary/accent purple
+- Robin's Green (#07D4BC): Interactive elements
+- Yellow Sea (#FFB00C): Highlighting elements
+- Snow White (#FFFFFF): Background/cards
+- Cod Gray (#0D0D0D): Text/icons
+- Typography: PP Neue Montreal for headings, Inter for body text
+
+## Core Profile Elements
+- Header: Gradient from Electric Violet (#5700E6) to Heliotrope (#B27BFB) with:
+  * White "Profile" title in PP Neue Montreal (22px)
+  * Back button (left) with subtle white icon
+  * Edit button (right) with pencil icon
+  * Subtle wave pattern that extends into the profile section
+
+- Profile Information:
+  * Large circular profile picture (80px) centered below header
+  * Camera icon overlay for changing photo
+  * Username/display name in PP Neue Montreal Bold (20px)
+  * Email address in Inter Regular (14px)
+  * Member since date in subtle gray text
+  * Premium status badge if applicable (Yellow Sea ribbon icon)
+
+- Stats Section:
+  * Clean white card with subtle shadow
+  * Usage statistics in 3-column layout:
+    - Journal entries count with notebook icon
+    - Chat sessions count with chat bubble icon
+    - Mood entries count with chart icon
+  * Small graphs or progress indicators where relevant
+  * "View Details" subtle text link at bottom
+
+## Preference Categories
+- Account Settings:
+  * White card with Electric Violet icon
+  * Options for profile information, password, email
+  * Toggle switches for notification preferences
+  * Data privacy controls with Robin's Green toggles
+  * Account deletion option (de-emphasized)
+
+- App Preferences:
+  * White card with customization icon
+  * Theme selection (Light/Dark/System)
+  * Font size slider with A- and A+ indicators
+  * Language selection with current language displayed
+  * Haptic feedback toggle
+
+- Subscription Details:
+  * Current plan information (Free or Premium)
+  * Plan features in condensed list
+  * Yellow Sea (#FFB00C) "Upgrade" button if on free plan
+  * Manage subscription options if premium
+
+## Visual Design Elements
+- Subtle animations when toggling settings
+- Depth through thoughtful use of shadows and layering
+- Consistent corner radius (16px) for all cards and buttons
+- Ample whitespace for readability and focus
+- Micro-interactions on tap/selection
+- Properly sized touch targets (minimum 44×44px)
+
+## Special Features
+- Dark mode version of the screen
+- "Privacy Score" with simple visualization
+- Quick access to frequently used settings
+- Export personal data option
+- "What's New" section for recent app updates
+- Help & Support card with direct link to assistance
+
+Design this profile screen to feel personal and tailored to the user while maintaining the calming, professional aesthetic of KounselMe. Balance functionality with a sense of ownership and control that empowers users to customize their experience without overwhelming them with options.
+
+
+
+Create a photorealistic mockup of the KounselMe settings screen that provides clear, organized access to app configurations while maintaining our brand's clean, minimalist aesthetic.
+
+## Brand Colors and Typography
+- Electric Violet (#5700E6): Primary brand color
+- Heliotrope (#B27BFB): Secondary/accent purple
+- Robin's Green (#07D4BC): Toggle buttons/active elements
+- Yellow Sea (#FFB00C): Warning/important notices
+- Snow White (#FFFFFF): Background/cards
+- Cod Gray (#0D0D0D): Text/icons
+- Typography: PP Neue Montreal for headings, Inter for body text
+
+## Core Settings Structure
+- Header: Electric Violet (#5700E6) header with:
+  * White "Settings" title in PP Neue Montreal (22px)
+  * Back button (left) with subtle white icon
+  * Search icon (right) for finding specific settings
+
+- Settings Categories:
+  * Organized into logical groups with section headers in Electric Violet
+  * Clean white cards for each major category
+  * 16px padding within sections
+  * Clear separators between individual settings (1px light gray)
+  * Icons in muted colors for each setting type
+
+## Settings Sections
+- Account & Privacy:
+  * Profile information access
+  * Password change option
+  * Privacy controls with clear explanations
+  * Two-factor authentication toggle
+  * Data storage preferences (cloud vs. local emphasis)
+  * Export/download your data option
+
+- Notifications:
+  * Master toggle for all notifications
+  * Individual toggles for:
+    - Journal reminders
+    - Chat notifications
+    - Mood logging reminders
+    - Weekly insights
+  * Custom scheduling options for reminders
+  * Do Not Disturb settings
+
+- Appearance:
+  * Theme selection (Light/Dark/System/Purple Focus)
+  * Text size adjustment with preview
+  * Reduced animation toggle for accessibility
+  * High contrast mode toggle
+  * Custom accent color selection
+
+- Data & Storage:
+  * Storage usage visualization (pie chart)
+  * Clear cache option
+  * Offline mode settings
+  * Download settings for media
+  * Backup frequency options
+
+- Support & Feedback:
+  * Help center link
+  * Contact support option
+  * Send feedback link
+  * Rate the app button
+  * Version information with update check
+
+## Visual Design Elements
+- Toggle switches using Robin's Green (#07D4BC) for ON state
+- Radio buttons and checkboxes with appropriate states
+- Slider controls for continuous settings (e.g., text size)
+- Information icons with hover/tap tooltips for complex settings
+- Proper grouping with whitespace to avoid cluttered appearance
+- Clear visual hierarchy through typography and spacing
+
+## Special Features
+- Quick settings section at top for frequently used options
+- Reset to defaults option (carefully positioned to avoid accidental use)
+- Clear explanations for privacy-related settings
+- Contextual help available for complex settings
+- Optimized keyboard navigation and screen reader support
+- Settings search with predictive results
+
+Design this settings screen to be straightforward and unintimidating while providing comprehensive control. The interface should feel organized, with the most important settings easily discoverable while more advanced options remain accessible but don't overwhelm. Maintain the calming aesthetic of KounselMe throughout.
+
+
+
+
+Create a photorealistic mockup of the KounselMe onboarding flow that introduces new users to the app's core features while establishing trust and explaining our privacy-first approach. Show a single screen from this flow that captures the essence of the onboarding experience.
+
+## Brand Colors and Typography
+- Electric Violet (#5700E6): Primary brand color
+- Heliotrope (#B27BFB): Secondary/accent purple
+- Robin's Green (#07D4BC): Action buttons/progress
+- Yellow Sea (#FFB00C): Highlights/key points
+- Snow White (#FFFFFF): Background/text
+- Cod Gray (#0D0D0D): Dark text/icons
+- Typography: PP Neue Montreal for headings, Inter for body text
+
+## Core Onboarding Structure
+- Full Screen Experience:
+  * Clean design with ample whitespace
+  * Subtle gradient background blending Electric Violet and Heliotrope
+  * Prominent KounselMe logo at top
+  * Clear, concise heading in PP Neue Montreal Bold (28px)
+  * Brief explanatory text in Inter Regular (16px)
+  * Large, high-quality illustration demonstrating the feature
+
+- Navigation Elements:
+  * Robin's Green (#07D4BC) "Next" button (bottom right)
+  * "Skip" text option (top right)
+  * Progress indicator showing 3-5 steps (subtle dots)
+  * Swipe indication for touch navigation
+
+## Onboarding Content Screens
+- Welcome/Introduction:
+  * Warm, inviting headline: "Welcome to KounselMe"
+  * Brief value proposition explaining mental wellness benefits
+  * Animation of the app logo forming from abstract elements
+  * "Get Started" call to action
+
+- Privacy-First Approach:
+  * Clear heading: "Your Privacy Comes First"
+  * Explanation of local-first storage approach
+  * Simple visual showing encrypted data on device
+  * Key points with lock icons explaining data protection
+  * Optional: Biometric lock setup teaser
+
+- Core Features Introduction:
+  * Showcase of three main features with icons:
+    - AI Chat: "Talk through challenges with supportive AI"
+    - Journaling: "Reflect and process your thoughts"
+    - Mood Tracking: "Understand your emotional patterns"
+  * Simple animations demonstrating each feature
+  * Brief text explanation for each
+
+- Personalization:
+  * Quick preference setup (2-3 questions maximum)
+  * Goals selection (e.g., reduce stress, improve communication)
+  * Reminder frequency options (daily, few times a week, weekly)
+  * Name input with friendly prompt
+
+- Final Welcome:
+  * "You're All Set!" headline
+  * Summary of personalized experience ahead
+  * Premium features teaser (subtle, not pushy)
+  * Prominent "Start Your Journey" button
+
+## Visual Design Elements
+- Smooth transitions between screens (implied in static mockup)
+- Subtle animations highlighting key points
+- Consistent illustration style across all screens
+- Accessible color contrast for all text
+- Clean, easy-to-scan layouts
+- Progress indicator that updates with each screen
+
+## Special Features
+- Option to enable notifications during onboarding
+- "Learn more" expandable sections for privacy-conscious users
+- Skippable sections with the ability to review later
+- Light/dark mode respect based on system settings
+- First-time user tips that appear after onboarding
+
+Design this onboarding experience to be welcoming, informative, and efficient. The flow should establish trust around privacy, clearly communicate the app's value, and get users to their first meaningful interaction as quickly as possible while still providing necessary context.
+
+
+
+
+
+
+
